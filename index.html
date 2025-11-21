@@ -140,61 +140,76 @@ verifyPinBtn.onclick=()=>{
 }
 
 // ---------------- STEP 3: Wallet ----------------
-sendBtn.onclick=()=>{
-  sendStatus.textContent='';
-  const contact=session?.contact;
-  const users=DB.get('laam_users');
-  const sender=users[contact];
-  const recipientAddr=toAddr.value.trim();
-  const amt=Number(amount.value);
-  if(!recipientAddr||!amt||amt<=0){sendStatus.textContent='Geli xog sax ah'; return;}
-  if(sender.balance<amt){sendStatus.textContent='Balance ma filna'; return;}
+sendBtn.onclick = () => {
+  sendStatus.textContent = '';
+  const contact = session?.contact;
+  const users = DB.get('laam_users');
+  const sender = users[contact];
 
-  // create recipient in storage if not exist
-  let recipient=null;
-  for(const k in users){if(users[k].address===recipientAddr){recipient=users[k]; break;}}
-  if(!recipient){recipient={name:'Unknown',address:recipientAddr,balance:0,createdAt:nowTs()};users[recipientAddr]=recipient;}
+  const recipientContact = toAddr.value.trim(); // Halkan user galiyaa phone/email
+  const amt = Number(amount.value);
+  if(!recipientContact || !amt || amt <= 0){ sendStatus.textContent='Geli xog sax ah'; return;}
+  if(sender.balance < amt){ sendStatus.textContent='Balance ma filna'; return;}
 
-  // create tx
-  const tx={txHash:'0x'+uid(12),fromAddr:sender.address,toAddr:recipient.address,amount:amt,memo:memo.value,ts:nowTs()};
-  const txs=DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs',txs);
+  // Hubi haddii recipient uu jiro, haddii uusan jirin abuur user cusub
+  if(!users[recipientContact]){
+      users[recipientContact] = { name:'Unknown', address:generateAddress(), balance:0, createdAt:nowTs() };
+  }
+  const recipient = users[recipientContact];
 
-  sender.balance-=amt; recipient.balance+=amt;
-  DB.set('laam_users',users);
+  // samee transaction
+  const tx = {
+      txHash: '0x'+uid(12),
+      fromAddr: sender.address,  // kaliya address ayaa la isticmaalaa
+      toAddr: recipient.address, // kaliya address ayaa la isticmaalaa
+      amount: amt,
+      memo: memo.value,
+      ts: nowTs()
+  };
+
+  const txs = DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
+
+  sender.balance -= amt;
+  recipient.balance += amt;
+  DB.set('laam_users', users);
 
   createBlock([tx]);
-  meBal.textContent=sender.balance;
-  sendStatus.textContent='Transfer OK → '+tx.txHash;
+  meBal.textContent = sender.balance;
+  sendStatus.textContent = "Transfer OK → " + tx.txHash;
 
   toAddr.value=''; amount.value=''; memo.value='';
-}
-
+  }
 // ---------------- BLOCKCHAIN ----------------
-createBlockBtn.onclick=()=>createBlock([]);
-
-function createBlock(txs=[]){
-  const blocks=DB.get('laam_blocks');
-  const prev=blocks.length?blocks[blocks.length-1].hash:'0x0';
-  const block={index:blocks.length,ts:nowTs(),prevHash:prev,hash:'0x'+uid(20),txs};
-  blocks.push(block);
-  DB.set('laam_blocks',blocks);
-  renderBlocks();
-}
 
 function renderBlocks(){
-  const blocks=DB.get('laam_blocks')||[];
+  const blocks = DB.get('laam_blocks')||[];
   blocksList.innerHTML='';
   for(const b of blocks.slice().reverse()){
-    const d=document.createElement('div'); d.className='block';
-    d.innerHTML=`<strong>Block #${b.index}</strong><br/>Prev: <code>${b.prevHash}</code><br/>Hash: <code>${b.hash}</code><br/>Txs: ${b.txs.length}<br/>Time: ${b.ts}`;
-    for(const t of b.txs){
-      const tx=document.createElement('div'); tx.className='txItem';
-      tx.innerHTML=`<b>${t.txHash}</b><br><b>From:</b> ${t.fromAddr}<br><b>To:</b> ${t.toAddr}<br><b>Amount:</b> ${t.amount}<br><b>Memo:</b> ${t.memo||"-"}<br><small>${t.ts}</small>`;
-      d.appendChild(tx);
-    }
-    blocksList.appendChild(d);
+      const d=document.createElement('div'); d.className='block';
+      d.innerHTML = `
+        <strong>Block #${b.index}</strong><br/>
+        Prev: <code>${b.prevHash}</code><br/>
+        Hash: <code>${b.hash}</code><br/>
+        Txs: ${b.txs.length}<br/>
+        Time: ${b.ts}
+      `;
+
+      for(const t of b.txs){
+          const tx = document.createElement('div'); tx.className='txItem';
+          tx.innerHTML = `
+            <b>${t.txHash}</b><br>
+            <b>From:</b> ${t.fromAddr}<br>
+            <b>To:</b> ${t.toAddr}<br>
+            <b>Amount:</b> ${t.amount}<br>
+            <b>Memo:</b> ${t.memo||"-"}<br>
+            <small>${t.ts}</small>
+          `;
+          d.appendChild(tx);
+      }
+      blocksList.appendChild(d);
   }
 }
+
 
 // Genesis block
 if(!(DB.get('laam_blocks')||[]).length) createBlock([]);
