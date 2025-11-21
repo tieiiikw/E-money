@@ -12,44 +12,12 @@ input{display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;b
 button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer;margin-top:6px;}  
 .hidden{display:none;}  
 .status{margin-top:8px;color:#444;font-size:14px;}  
-code{background:#f3f4f6;padding:4px 6px;border-radius:6px;}  
-#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px;}  
-.block{padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;}  
-.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;}  
+code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;}  
+#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px;max-height:300px;overflow-y:auto;}  
+.block{padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;overflow-wrap:anywhere;}  
+.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;overflow-wrap:anywhere;}  
 
-code{
-  background:#f3f4f6;
-  padding:4px 6px;
-  border-radius:6px;
-  word-break: break-all; /* address & hash ayaa wrap */
-}
-
-#blocksList{
-  margin-top:12px;
-  border-top:1px dashed #eee;
-  padding-top:10px;
-  max-height:300px; /* limit height */
-  overflow-y:auto; /* scroll if too many blocks */
-}
-
-.block{
-  padding:8px;
-  border-radius:8px;
-  background:#f8fafc;
-  margin-bottom:8px;
-  border:1px solid #eef2ff;
-  overflow-wrap: anywhere; /* make text wrap inside block */
-}
-
-.txItem{
-  font-size:13px;
-  margin-top:6px;
-  background:#fff;
-  padding:6px;
-  border-radius:6px;
-  border:1px solid #e5e7eb;
-  overflow-wrap: anywhere;
-}
+.step{margin-top:10px;}
 </style>
 </head>
 <body>
@@ -91,19 +59,48 @@ code{
     <div><b>Address:</b> <code id="meAddr"></code></div>
     <div><b>Balance:</b> <span id="meBal"></span></div>
 
-    <h3>Send Money</h3>
-    <input id="toContact" placeholder="Recipient Phone or Email" />
-    <input id="amount" placeholder="Amount" type="number" />
-    <input id="memo" placeholder="Memo (optional)" />
-    <button id="sendBtn">Dir Lacag</button>
-    <div class="status" id="sendStatus"></div>
+    <!-- Send Money Wizard -->
+ <h3>Send Money</h3>
+<button id="startSendBtn">Send Money</button>
 
-    <h3></h3>
-  <!-- Explorer Button -->
-<div style="text-align:center; margin:12px 0;">
-  <button id="createBlockBtn">Explorer</button>
+<div id="sendWizard" class="hidden" style="margin-top:12px;">
+  <!-- Step 1: Recipient -->
+  <div id="step1">
+    <input id="wizardToContact" placeholder="Recipient Phone or Email" />
+    <button id="next1">Next</button>
+  </div>
+
+  <!-- Step 2: Amount -->
+  <div id="step2" class="hidden">
+    <input id="wizardAmount" type="number" placeholder="Amount" />
+    <button id="prev2">Prev</button>
+    <button id="next2">Next</button>
+  </div>
+
+  <!-- Step 3: Memo -->
+  <div id="step3" class="hidden">
+    <input id="wizardMemo" placeholder="Memo (optional)" />
+    <button id="prev3">Prev</button>
+    <button id="next3">Next</button>
+  </div>
+
+  <!-- Step 4: Confirm -->
+  <div id="step4" class="hidden">
+    <p>Recipient: <span id="confirmTo"></span></p>
+    <p>Amount: <span id="confirmAmount"></span></p>
+    <p>Memo: <span id="confirmMemo"></span></p>
+    <button id="prev4">Prev</button>
+    <button id="sendWizardBtn">Send</button>
+  </div>
+  <div id="sendStatus" class="status"></div>
 </div>
-<div id="blocksList"></div>
+
+    <!-- Explorer Button -->
+    <div style="text-align:center; margin:12px 0;">
+      <button id="createBlockBtn">Explorer</button>
+    </div>
+    <div id="blocksList"></div>
+
     <button id="logoutBtn" style="margin-top:10px;background:#ef4444;">Logout</button>
   </section>
 </div>
@@ -146,16 +143,30 @@ const pinStatus=document.getElementById('pinStatus');
 
 const meAddr=document.getElementById('meAddr');
 const meBal=document.getElementById('meBal');
-const toContact=document.getElementById('toContact');
-const amount=document.getElementById('amount');
-const memo=document.getElementById('memo');
-const sendBtn=document.getElementById('sendBtn');
-const sendStatus=document.getElementById('sendStatus');
 
 const blocksList=document.getElementById('blocksList');
 const createBlockBtn=document.getElementById('createBlockBtn');
 const logoutBtn=document.getElementById('logoutBtn');
 
+// Wizard elements
+const startSendBtn = document.getElementById('startSendBtn');
+const sendWizard = document.getElementById('sendWizard');
+
+const step1 = document.getElementById('step1');
+const step2 = document.getElementById('step2');
+const step3 = document.getElementById('step3');
+const step4 = document.getElementById('step4');
+
+const wizardToContact = document.getElementById('wizardToContact');
+const wizardAmount = document.getElementById('wizardAmount');
+const wizardMemo = document.getElementById('wizardMemo');
+
+const confirmTo = document.getElementById('confirmTo');
+const confirmAmount = document.getElementById('confirmAmount');
+const confirmMemo = document.getElementById('confirmMemo');
+
+const sendWizardBtn = document.getElementById('sendWizardBtn');
+const sendStatus = document.getElementById('sendStatus');
 let session=null;
 let otpStore={};
 
@@ -169,14 +180,11 @@ signupBtn.onclick=()=>{
   const contact=contactInput.value.trim();
   const password=passwordInput.value.trim();
   if(!name||!contact||!password){signupStatus.textContent='Geli dhammaan xogta'; return;}
-
   const users=DB.get('laam_users');
   if(!users[contact]) users[contact]={ name, password, address:generateAddress(), balance:1000, createdAt: nowTs() };
   DB.set('laam_users', users);
-
   otpStore[contact]='123456';
   signupStatus.textContent='PIN / OTP waa la diray (demo: 123456)';
-
   session={contact};
   signupSection.classList.add('hidden');
   pinSection.classList.remove('hidden');
@@ -189,14 +197,9 @@ loginBtn.onclick=()=>{
   const users=DB.get('laam_users');
   if(!contact||!password){loginStatus.textContent='Geli xogta'; return;}
   if(!users[contact]||users[contact].password!==password){loginStatus.textContent='Contact ama Password khalad'; return;}
-
-  // -------------------
-  // PIN verification dhaaf
-  // -------------------
   session={contact};
   loginSection.classList.add('hidden');
   walletSection.classList.remove('hidden');
-
   const user = users[contact];
   meAddr.textContent = user.address;
   meBal.textContent = user.balance;
@@ -209,50 +212,79 @@ verifyPinBtn.onclick=()=>{
   const contact=session?.contact;
   if(!otpStore[contact]){pinStatus.textContent='PIN lama dirin'; return;}
   if(pin!==otpStore[contact]){pinStatus.textContent='PIN khalad ah'; return;}
-
   pinStatus.textContent='PIN sax ah. Welcome!';
   pinSection.classList.add('hidden');
   walletSection.classList.remove('hidden');
-
   const user=DB.get('laam_users')[contact];
   meAddr.textContent=user.address;
   meBal.textContent=user.balance;
-
   renderBlocks();
 }
 
-// ---------------- SEND ----------------
-sendBtn.onclick=()=>{
+// ---------------- SEND WIZARD ----------------
+startSendBtn.onclick = () => {
+  sendWizard.classList.remove('hidden');
+  startSendBtn.disabled = true; // disable until wizard ends
+}
+
+// Step navigation
+document.getElementById('next1').onclick = () => {
+  if(!wizardToContact.value.trim()){ sendStatus.textContent="Geli recipient"; return; }
+  step1.classList.add('hidden'); step2.classList.remove('hidden'); sendStatus.textContent='';
+}
+document.getElementById('prev2').onclick = () => { step2.classList.add('hidden'); step1.classList.remove('hidden'); }
+document.getElementById('next2').onclick = () => {
+  if(!wizardAmount.value || Number(wizardAmount.value)<=0){ sendStatus.textContent="Geli amount sax ah"; return; }
+  step2.classList.add('hidden'); step3.classList.remove('hidden'); sendStatus.textContent='';
+}
+document.getElementById('prev3').onclick = () => { step3.classList.add('hidden'); step2.classList.remove('hidden'); }
+document.getElementById('next3').onclick = () => {
+  step3.classList.add('hidden'); step4.classList.remove('hidden');
+  confirmTo.textContent = wizardToContact.value.trim();
+  confirmAmount.textContent = wizardAmount.value;
+  confirmMemo.textContent = wizardMemo.value || "-";
+}
+document.getElementById('prev4').onclick = () => { step4.classList.add('hidden'); step3.classList.remove('hidden'); }
+
+// Send final transaction
+sendWizardBtn.onclick = () => {
   sendStatus.textContent='';
-  const contact=session?.contact;
-  const users=DB.get('laam_users');
-  const sender=users[contact];
+  const contact = session?.contact;
+  const users = DB.get('laam_users');
+  const sender = users[contact];
 
-  const recipientContact=toContact.value.trim();
-  const amt=Number(amount.value);
-  if(!recipientContact || !amt || amt<=0){ sendStatus.textContent='Geli xog sax ah'; return;}
-  if(sender.balance<amt){ sendStatus.textContent='Balance ma filna'; return;}
+  const recipientContact = wizardToContact.value.trim();
+  const amt = Number(wizardAmount.value);
+  const memoVal = wizardMemo.value;
 
+  if(sender.balance < amt){ sendStatus.textContent='Balance ma filna'; return; }
   if(!users[recipientContact]){
-    users[recipientContact]={ name:'Unknown', address:generateAddress(), balance:0, createdAt:nowTs() };
+    users[recipientContact] = { name:'Unknown', address: generateAddress(), balance:0, createdAt: nowTs() };
   }
-  const recipient=users[recipientContact];
+  const recipient = users[recipientContact];
 
-  const tx={ txHash:'0x'+uid(12), fromAddr:sender.address, toAddr:recipient.address, amount:amt, memo:memo.value, ts:nowTs() };
-  const txs=DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
+  const tx = { txHash: '0x'+uid(12), fromAddr: sender.address, toAddr: recipient.address, amount: amt, memo: memoVal, ts: nowTs() };
+  const txs = DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
 
-  sender.balance-=amt;
-  recipient.balance+=amt;
+  sender.balance -= amt;
+  recipient.balance += amt;
   DB.set('laam_users', users);
 
   createBlock([tx]);
-  meBal.textContent=sender.balance;
-  sendStatus.textContent="Transfer OK → "+tx.txHash;
+  meBal.textContent = sender.balance;
+  sendStatus.textContent = "Transfer OK → " + tx.txHash;
 
-  toContact.value=''; amount.value=''; memo.value='';
+  // Reset wizard
+  wizardToContact.value=''; wizardAmount.value=''; wizardMemo.value='';
+  step4.classList.add('hidden');
+  step1.classList.remove('hidden');
+  sendWizard.classList.add('hidden');
+  startSendBtn.disabled = false;
 }
 
 // ---------------- BLOCKCHAIN ----------------
+createBlockBtn.onclick=()=>{ blocksList.scrollIntoView({behavior:"smooth",block:"center"}); }
+
 function createBlock(txs=[]){
   const blocks=DB.get('laam_blocks')||[];
   const prev=blocks.length?blocks[blocks.length-1].hash:'0x0';
@@ -298,7 +330,6 @@ logoutBtn.onclick=()=>{
   walletSection.classList.add('hidden');
   loginSection.classList.remove('hidden');
 }
-
 </script>
 </body>
 </html>
