@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Laam Wallet</title>
+<title>Alifpay</title>
 <style>
-/* Minimal CSS from your previous demo */
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;padding:18px;background:#f7f7fb;color:#222;}
 .container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
 input, button{padding:10px;margin:6px 0;width:100%;border-radius:6px;box-sizing:border-box;}
@@ -16,9 +15,8 @@ button{background:#2563eb;color:#fff;border:none;cursor:pointer;}
 </head>
 <body>
 <div class="container">
-<h1>Laam Wallet</h1>
+<h1>Alif wallet</h1>
 
-<!-- Signup Section -->
 <section id="signupSection">
   <h2>Signup</h2>
   <input id="nameInput" placeholder="Magacaaga" />
@@ -28,7 +26,6 @@ button{background:#2563eb;color:#fff;border:none;cursor:pointer;}
   <div class="status" id="signupStatus"></div>
 </section>
 
-<!-- OTP Verification -->
 <section id="otpSection" class="hidden">
   <h2>Geli OTP</h2>
   <input id="otpInput" placeholder="OTP" />
@@ -36,7 +33,6 @@ button{background:#2563eb;color:#fff;border:none;cursor:pointer;}
   <div class="status" id="otpStatus"></div>
 </section>
 
-<!-- Wallet Section -->
 <section id="walletSection" class="hidden">
   <h2>Wallet Dashboard</h2>
   <div><b>Address:</b> <span id="meAddr"></span></div>
@@ -47,14 +43,11 @@ button{background:#2563eb;color:#fff;border:none;cursor:pointer;}
 
 <script src="https://cdn.jsdelivr.net/npm/appwrite@8.1.1/dist/appwrite.min.js"></script>
 <script>
-// ----------- Appwrite Init -------------
 const client = new Appwrite.Client();
-client.setEndpoint("https://YOUR_APPWRITE_ENDPOINT/v1").setProject("YOUR_PROJECT_ID");
-
+client.setEndpoint("YOUR_APPWRITE_ENDPOINT/v1").setProject("YOUR_PROJECT_ID");
 const database = new Appwrite.Database(client);
 const functions = new Appwrite.Functions(client);
 
-// ----------- Elements -------------
 const signupSection = document.getElementById('signupSection');
 const otpSection = document.getElementById('otpSection');
 const walletSection = document.getElementById('walletSection');
@@ -75,21 +68,18 @@ const logoutBtn = document.getElementById('logoutBtn');
 
 let currentUser = null;
 
-// ----------- Signup & OTP -------------
 signupBtn.onclick = async () => {
   const name = nameInput.value.trim();
   const contact = contactInput.value.trim();
   const password = passwordInput.value.trim();
   if(!name || !contact || !password){ signupStatus.textContent="Geli dhammaan xogta"; return; }
 
-  // Create user in Appwrite
   const doc = await database.createDocument('YOUR_USERS_COLLECTION_ID', 'unique()', {
-    name, contact, password, address: '0x'+Math.random().toString(16).slice(2,18), balance:1000, createdAt:new Date().toISOString()
+    name, contact, password, address:'0x'+Math.random().toString(16).slice(2,18), balance:1000, createdAt:new Date().toISOString()
   });
 
   currentUser = doc;
 
-  // Call send-otp function
   await functions.createExecution('YOUR_OTP_FUNCTION_ID', JSON.stringify({ contact }));
 
   signupSection.classList.add('hidden');
@@ -97,7 +87,6 @@ signupBtn.onclick = async () => {
   signupStatus.textContent="OTP waa la diray!";
 };
 
-// ----------- Verify OTP -------------
 verifyOtpBtn.onclick = async () => {
   const otp = otpInput.value.trim();
   if(!otp){ otpStatus.textContent="Geli OTP"; return; }
@@ -114,7 +103,6 @@ verifyOtpBtn.onclick = async () => {
   }
 };
 
-// ----------- Logout -------------
 logoutBtn.onclick = () => {
   currentUser = null;
   walletSection.classList.add('hidden');
