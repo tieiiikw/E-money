@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laam Demo - Decentralized Phone Wallet (Phone-Free Blocks)</title>
-
+<title>Laam Wallet - 3 Step Demo</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}
 .container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
-h1{margin-top:0;font-size:20px;}
+h1,h2{margin-top:0;}
 input{display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;}
 button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer;margin-top:6px;}
 .hidden{display:none;}
@@ -21,43 +20,40 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;}
 </head>
 <body>
 <div class="container">
-  <h1>Laam Demo - Decentralized Phone Wallet (Phone-Free Blocks)</h1>
+  <h1>Laam Wallet Demo - 3 Step Flow</h1>
 
-  <!-- REGISTER -->
-  <section id="register">
-    <h2>1) Diiwaangelin / Create Account</h2>
-    <input id="phoneInput" placeholder="+2519..." />
-    <button id="reqOtpBtn">Codso OTP (Demo)</button>
-
-    <div id="otpArea" class="hidden">
-      <input id="otpInput" placeholder="Geli OTP (123456)" />
-      <button id="verifyOtpBtn">Verify OTP</button>
-    </div>
-
-    <div id="regStatus" class="status"></div>
+  <!-- Step 1: Signup -->
+  <section id="signupSection">
+    <h2>Step 1: Signup</h2>
+    <input id="nameInput" placeholder="Magacaaga" />
+    <input id="contactInput" placeholder="Email ama Phone" />
+    <input id="passwordInput" placeholder="Password" type="password" />
+    <button id="signupBtn">Codso PIN / OTP</button>
+    <div id="signupStatus" class="status"></div>
   </section>
 
-  <!-- WALLET -->
-  <section id="wallet" class="hidden">
-    <h2>Wallet-kaaga</h2>
-    <div><b>Phone:</b> <span id="mePhone"></span></div>
+  <!-- Step 2: Enter PIN -->
+  <section id="pinSection" class="hidden">
+    <h2>Step 2: Geli PIN la diray</h2>
+    <input id="pinInput" placeholder="Geli PIN (123456)" />
+    <button id="verifyPinBtn">Verify PIN</button>
+    <div id="pinStatus" class="status"></div>
+  </section>
+
+  <!-- Step 3: Wallet Dashboard -->
+  <section id="walletSection" class="hidden">
+    <h2>Step 3: Wallet Dashboard</h2>
     <div><b>Address:</b> <code id="meAddr"></code></div>
     <div><b>Balance:</b> <span id="meBal"></span></div>
-  </section>
 
-  <!-- SEND -->
-  <section id="send" class="hidden">
-    <h2>2) Dir Lacag</h2>
-    <input id="toPhone" placeholder="Recipient +2519..." />
+    <h3>Dir Lacag</h3>
+    <input id="toAddr" placeholder="Recipient Address" />
     <input id="amount" placeholder="Amount" type="number" />
     <input id="memo" placeholder="Memo (optional)" />
     <button id="sendBtn">Dir Lacag</button>
     <div id="sendStatus" class="status"></div>
-  </section>
 
-  <!-- EXPLORER -->
-  <section id="explorer">
-    <h2>Explorer (Blocks & Transactions)</h2>
+    <h3>Blocks Explorer</h3>
     <button id="createBlockBtn">Abuur Block (Mine)</button>
     <div id="blocksList"></div>
   </section>
@@ -67,33 +63,32 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;}
 // ---------------- UTILS ----------------
 function uid(len=8){ return Math.random().toString(16).slice(2,2+len) }
 function nowTs(){ return new Date().toISOString() }
-
-// Generate random 0x address (phone-free)
-function generateAddress() {
-    return '0x' + Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join('');
-}
+function generateAddress() { return '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
 
 // ---------------- STORAGE ----------------
-const DB={get:k=>JSON.parse(localStorage.getItem(k)||'null'), set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+const DB={ get(k){return JSON.parse(localStorage.getItem(k)||'null')}, set(k,v){localStorage.setItem(k,JSON.stringify(v))} };
 if(!DB.get('laam_users')) DB.set('laam_users',{});
 if(!DB.get('laam_blocks')) DB.set('laam_blocks',[]);
 if(!DB.get('laam_txs')) DB.set('laam_txs',[]);
 
 // ---------------- ELEMENTS ----------------
-const phoneInput=document.getElementById('phoneInput');
-const reqOtpBtn=document.getElementById('reqOtpBtn');
-const otpArea=document.getElementById('otpArea');
-const otpInput=document.getElementById('otpInput');
-const verifyOtpBtn=document.getElementById('verifyOtpBtn');
-const regStatus=document.getElementById('regStatus');
+const signupSection=document.getElementById('signupSection');
+const pinSection=document.getElementById('pinSection');
+const walletSection=document.getElementById('walletSection');
 
-const walletSection=document.getElementById('wallet');
-const mePhoneSpan=document.getElementById('mePhone');
-const meAddrCode=document.getElementById('meAddr');
-const meBalSpan=document.getElementById('meBal');
+const nameInput=document.getElementById('nameInput');
+const contactInput=document.getElementById('contactInput');
+const passwordInput=document.getElementById('passwordInput');
+const signupBtn=document.getElementById('signupBtn');
+const signupStatus=document.getElementById('signupStatus');
 
-const sendSection=document.getElementById('send');
-const toPhone=document.getElementById('toPhone');
+const pinInput=document.getElementById('pinInput');
+const verifyPinBtn=document.getElementById('verifyPinBtn');
+const pinStatus=document.getElementById('pinStatus');
+
+const meAddr=document.getElementById('meAddr');
+const meBal=document.getElementById('meBal');
+const toAddr=document.getElementById('toAddr');
 const amount=document.getElementById('amount');
 const memo=document.getElementById('memo');
 const sendBtn=document.getElementById('sendBtn');
@@ -102,98 +97,77 @@ const sendStatus=document.getElementById('sendStatus');
 const blocksList=document.getElementById('blocksList');
 const createBlockBtn=document.getElementById('createBlockBtn');
 
+let session=null;
 let otpStore={};
-let session=DB.get('laam_session')||null;
-if(session) showWallet(session.phone);
 
-// ---------------- OTP REQUEST ----------------
-reqOtpBtn.onclick=()=>{
-  const phone=phoneInput.value.trim();
-  if(!phone){ regStatus.textContent='Geli phone sax ah'; return; }
-
-  otpStore[phone]={otp:"123456",ts:Date.now()};
-  regStatus.textContent="OTP waa la diray (demo): 123456";
-  otpArea.classList.remove('hidden');
-};
-
-// ---------------- VERIFY OTP ----------------
-verifyOtpBtn.onclick=()=>{
-  const phone=phoneInput.value.trim();
-  const code=otpInput.value.trim();
-  const users=DB.get('laam_users');
-
-  if(!otpStore[phone]){ regStatus.textContent='OTP lama dirin'; return; }
-  if(code!=="123456"){ regStatus.textContent='OTP khalad ah'; return; }
+// ---------------- STEP 1: Signup ----------------
+signupBtn.onclick=()=>{
+  const name=nameInput.value.trim();
+  const contact=contactInput.value.trim();
+  const password=passwordInput.value.trim();
+  if(!name||!contact||!password){signupStatus.textContent='Geli dhammaan xogta'; return;}
 
   // Create user with random address
-  if(!users[phone]){
-    users[phone]={address:generateAddress(),createdAt:nowTs(),balance:1000};
-    DB.set('laam_users', users);
-  }
+  const users=DB.get('laam_users');
+  if(!users[contact]) users[contact]={ name, password, address:generateAddress(), balance:1000, createdAt: nowTs() };
+  DB.set('laam_users', users);
 
-  session={phone,address:users[phone].address};
-  DB.set('laam_session', session);
+  // "Send OTP" demo
+  otpStore[contact]='123456';
+  signupStatus.textContent='PIN / OTP waa la diray (demo: 123456)';
 
-  regStatus.textContent='OTP OK. Wallet Ready.';
-  otpArea.classList.add('hidden');
+  session={contact};
+  signupSection.classList.add('hidden');
+  pinSection.classList.remove('hidden');
+}
 
-  showWallet(phone);
-};
+// ---------------- STEP 2: Verify PIN ----------------
+verifyPinBtn.onclick=()=>{
+  const pin=pinInput.value.trim();
+  const contact=session?.contact;
+  if(!otpStore[contact]){pinStatus.textContent='OTP lama dirin'; return;}
+  if(pin!==otpStore[contact]){pinStatus.textContent='PIN / OTP khalad ah'; return;}
 
-// ---------------- SHOW WALLET ----------------
-function showWallet(phone){
-  const u=DB.get('laam_users')[phone];
-
+  pinStatus.textContent='PIN sax ah. Welcome!';
+  pinSection.classList.add('hidden');
   walletSection.classList.remove('hidden');
-  sendSection.classList.remove('hidden');
 
-  mePhoneSpan.textContent=phone;
-  meAddrCode.textContent=u.address;
-  meBalSpan.textContent=u.balance;
+  const user=DB.get('laam_users')[contact];
+  meAddr.textContent=user.address;
+  meBal.textContent=user.balance;
 
   renderBlocks();
 }
 
-// ---------------- SEND MONEY ----------------
+// ---------------- STEP 3: Wallet ----------------
 sendBtn.onclick=()=>{
   sendStatus.textContent='';
-
-  const from=session?.phone;
-  const to=toPhone.value.trim();
-  const amt=Number(amount.value);
-
-  if(!to||!amt||amt<=0){ sendStatus.textContent='Geli xog sax ah'; return; }
-
+  const contact=session?.contact;
   const users=DB.get('laam_users');
-  if(!users[to]) users[to]={address:generateAddress(),createdAt:nowTs(),balance:0};
+  const sender=users[contact];
+  const recipientAddr=toAddr.value.trim();
+  const amt=Number(amount.value);
+  if(!recipientAddr||!amt||amt<=0){sendStatus.textContent='Geli xog sax ah'; return;}
+  if(sender.balance<amt){sendStatus.textContent='Balance ma filna'; return;}
 
-  const sender=users[from];
-  if(sender.balance<amt){ sendStatus.textContent='Balance ma filna'; return; }
+  // create recipient in storage if not exist
+  let recipient=null;
+  for(const k in users){if(users[k].address===recipientAddr){recipient=users[k]; break;}}
+  if(!recipient){recipient={name:'Unknown',address:recipientAddr,balance:0,createdAt:nowTs()};users[recipientAddr]=recipient;}
 
-  const tx={
-    txHash:'0x'+uid(12),
-    fromAddr:sender.address,
-    toAddr:users[to].address,
-    amount:amt,
-    memo:memo.value,
-    ts:nowTs()
-  };
+  // create tx
+  const tx={txHash:'0x'+uid(12),fromAddr:sender.address,toAddr:recipient.address,amount:amt,memo:memo.value,ts:nowTs()};
+  const txs=DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs',txs);
 
-  const txs=DB.get('laam_txs'); 
-  txs.push(tx); 
-  DB.set('laam_txs', txs);
-
-  sender.balance-=amt;
-  users[to].balance+=amt;
-  DB.set('laam_users', users);
+  sender.balance-=amt; recipient.balance+=amt;
+  DB.set('laam_users',users);
 
   createBlock([tx]);
+  meBal.textContent=sender.balance;
+  sendStatus.textContent='Transfer OK → '+tx.txHash;
 
-  meBalSpan.textContent=sender.balance;
-  sendStatus.textContent="Transfer OK → "+tx.txHash;
-
-  toPhone.value=''; amount.value=''; memo.value='';
-};
+  toAddr.value=''; amount.value=''; memo.value='';
+}
 
 // ---------------- BLOCKCHAIN ----------------
 createBlockBtn.onclick=()=>createBlock([]);
@@ -201,55 +175,29 @@ createBlockBtn.onclick=()=>createBlock([]);
 function createBlock(txs=[]){
   const blocks=DB.get('laam_blocks');
   const prev=blocks.length?blocks[blocks.length-1].hash:'0x0';
-
-  const block={
-    index:blocks.length,
-    ts:nowTs(),
-    prevHash:prev,
-    hash:'0x'+uid(20),
-    txs
-  };
-
+  const block={index:blocks.length,ts:nowTs(),prevHash:prev,hash:'0x'+uid(20),txs};
   blocks.push(block);
-  DB.set('laam_blocks', blocks);
+  DB.set('laam_blocks',blocks);
   renderBlocks();
 }
 
-// ---------------- DISPLAY BLOCKS ----------------
 function renderBlocks(){
-  const blocks=DB.get('laam_blocks');
+  const blocks=DB.get('laam_blocks')||[];
   blocksList.innerHTML='';
-
   for(const b of blocks.slice().reverse()){
-    const d=document.createElement('div');
-    d.className='block';
-    d.innerHTML=`
-      <strong>Block #${b.index}</strong><br/>
-      Prev: <code>${b.prevHash}</code><br/>
-      Hash: <code>${b.hash}</code><br/>
-      Txs: ${b.txs.length}<br/>
-      Time: ${b.ts}
-    `;
-
+    const d=document.createElement('div'); d.className='block';
+    d.innerHTML=`<strong>Block #${b.index}</strong><br/>Prev: <code>${b.prevHash}</code><br/>Hash: <code>${b.hash}</code><br/>Txs: ${b.txs.length}<br/>Time: ${b.ts}`;
     for(const t of b.txs){
-      const tx=document.createElement('div');
-      tx.className='txItem';
-      tx.innerHTML = `
-        <b>${t.txHash}</b><br/>
-        <b>From:</b> ${t.fromAddr}<br/>
-        <b>To:</b> ${t.toAddr}<br/>
-        <b>Amount:</b> ${t.amount}<br/>
-        <b>Memo:</b> ${t.memo || "-"}<br/>
-        <small>${t.ts}</small>
-      `;
+      const tx=document.createElement('div'); tx.className='txItem';
+      tx.innerHTML=`<b>${t.txHash}</b><br><b>From:</b> ${t.fromAddr}<br><b>To:</b> ${t.toAddr}<br><b>Amount:</b> ${t.amount}<br><b>Memo:</b> ${t.memo||"-"}<br><small>${t.ts}</small>`;
       d.appendChild(tx);
     }
     blocksList.appendChild(d);
   }
 }
 
-// Genesis block if empty
-if(!DB.get('laam_blocks').length) createBlock([]);
+// Genesis block
+if(!(DB.get('laam_blocks')||[]).length) createBlock([]);
 renderBlocks();
 </script>
 </body>
