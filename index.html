@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alifpay</title>
+<title>AlifPay Wallet</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;padding:18px;background:#f7f7fb;color:#222;}
 .container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
@@ -11,11 +11,13 @@ input, button{padding:10px;margin:6px 0;width:100%;border-radius:6px;box-sizing:
 button{background:#2563eb;color:#fff;border:none;cursor:pointer;}
 .hidden{display:none;}
 .status{color:#444;font-size:14px;margin-top:6px;}
+.block{padding:8px;border-radius:6px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;}
+.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>Alif wallet</h1>
+<h1>AlifPay Wallet</h1>
 
 <section id="signupSection">
   <h2>Signup</h2>
@@ -37,17 +39,34 @@ button{background:#2563eb;color:#fff;border:none;cursor:pointer;}
   <h2>Wallet Dashboard</h2>
   <div><b>Address:</b> <span id="meAddr"></span></div>
   <div><b>Balance:</b> <span id="meBal"></span></div>
+
+  <h3>Send Money</h3>
+  <input id="toContact" placeholder="Recipient Email / Phone">
+  <input id="amount" type="number" placeholder="Amount">
+  <input id="memo" placeholder="Memo (optional)">
+  <button id="sendBtn">Send</button>
+  <div class="status" id="sendStatus"></div>
+
+  <h3>Receive</h3>
+  <code id="receiveAddr"></code>
+  <button id="copyAddrBtn">Copy Address</button>
+  <div class="status" id="receiveStatus"></div>
+
+  <h3>Blocks Explorer</h3>
+  <div id="blocksList"></div>
+
   <button id="logoutBtn" style="background:#ef4444;">Logout</button>
 </section>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/appwrite@8.1.1/dist/appwrite.min.js"></script>
 <script>
+// ---------------- APPWRITE CONFIG ----------------
 const client = new Appwrite.Client();
-client.setEndpoint("YOUR_APPWRITE_ENDPOINT/v1").setProject("YOUR_PROJECT_ID");
+client.setEndpoint("https://nyc.cloud.appwrite.io/v1").setProject("6920c9a6002f73daaf09");
 const database = new Appwrite.Database(client);
 const functions = new Appwrite.Functions(client);
 
+// ---------------- ELEMENTS ----------------
 const signupSection = document.getElementById('signupSection');
 const otpSection = document.getElementById('otpSection');
 const walletSection = document.getElementById('walletSection');
@@ -66,48 +85,120 @@ const meAddr = document.getElementById('meAddr');
 const meBal = document.getElementById('meBal');
 const logoutBtn = document.getElementById('logoutBtn');
 
+const toContact = document.getElementById('toContact');
+const amount = document.getElementById('amount');
+const memo = document.getElementById('memo');
+const sendBtn = document.getElementById('sendBtn');
+const sendStatus = document.getElementById('sendStatus');
+
+const receiveAddr = document.getElementById('receiveAddr');
+const copyAddrBtn = document.getElementById('copyAddrBtn');
+const receiveStatus = document.getElementById('receiveStatus');
+
+const blocksList = document.getElementById('blocksList');
+
 let currentUser = null;
 
+// ---------------- SIGNUP ----------------
 signupBtn.onclick = async () => {
   const name = nameInput.value.trim();
   const contact = contactInput.value.trim();
   const password = passwordInput.value.trim();
   if(!name || !contact || !password){ signupStatus.textContent="Geli dhammaan xogta"; return; }
 
-  const doc = await database.createDocument('YOUR_USERS_COLLECTION_ID', 'unique()', {
-    name, contact, password, address:'0x'+Math.random().toString(16).slice(2,18), balance:1000, createdAt:new Date().toISOString()
+  const doc = await database.createDocument('users', 'unique()', {
+    name, contact, password,
+    address:'0x'+Math.random().toString(16).slice(2,18),
+    balance:1000,
+    createdAt:new Date().toISOString()
   });
 
   currentUser = doc;
+  receiveAddr.textContent = doc.address;
 
-  await functions.createExecution('YOUR_OTP_FUNCTION_ID', JSON.stringify({ contact }));
+  // Call OTP function
+  await functions.createExecution('alifpay_otp', JSON.stringify({ contact }));
 
   signupSection.classList.add('hidden');
   otpSection.classList.remove('hidden');
   signupStatus.textContent="OTP waa la diray!";
 };
 
+// ---------------- VERIFY OTP ----------------
 verifyOtpBtn.onclick = async () => {
   const otp = otpInput.value.trim();
   if(!otp){ otpStatus.textContent="Geli OTP"; return; }
 
-  const doc = await database.getDocument('YOUR_USERS_COLLECTION_ID', currentUser.$id);
+  const doc = await database.getDocument('users', currentUser.$id);
   if(doc.otp === otp && new Date(doc.otpExpiry) > new Date()){
     otpStatus.textContent="OTP sax ah!";
     otpSection.classList.add('hidden');
     walletSection.classList.remove('hidden');
     meAddr.textContent = doc.address;
     meBal.textContent = doc.balance;
+    renderBlocks();
   } else {
     otpStatus.textContent="OTP khalad ama dhacay!";
   }
 };
 
+// ---------------- LOGOUT ----------------
 logoutBtn.onclick = () => {
   currentUser = null;
   walletSection.classList.add('hidden');
   signupSection.classList.remove('hidden');
 };
+
+// ---------------- SEND MONEY ----------------
+sendBtn.onclick = async () => {
+  if(!toContact.value || !amount.value){ sendStatus.textContent="Geli xogta saxda ah"; return; }
+  const amt = Number(amount.value);
+
+  const exec = await functions.createExecution('alifpay_send', JSON.stringify({
+    fromContact: currentUser.contact,
+    toContact: toContact.value.trim(),
+    amount: amt,
+    memo: memo.value.trim()
+  }));
+
+  sendStatus.textContent="Transaction submitted!";
+  // Update balance locally (optional, actual update in function)
+  meBal.textContent = (currentUser.balance - amt);
+  // Reset inputs
+  toContact.value=''; amount.value=''; memo.value='';
+  await loadUserData();
+};
+
+// ---------------- COPY ADDRESS ----------------
+copyAddrBtn.onclick = () => {
+  navigator.clipboard.writeText(receiveAddr.textContent)
+    .then(()=>{ receiveStatus.textContent="Address la copy gareeyay!"; })
+    .catch(()=>{ receiveStatus.textContent="Copy failed"; });
+};
+
+// ---------------- BLOCKS ----------------
+async function loadUserData(){
+  currentUser = await database.getDocument('users', currentUser.$id);
+  meBal.textContent = currentUser.balance;
+}
+
+async function renderBlocks(){
+  const blocks = await database.listDocuments('blocks');
+  blocksList.innerHTML='';
+  blocks.documents.reverse().forEach(b => {
+    const d = document.createElement('div'); d.className='block';
+    d.innerHTML = `<strong>Block #${b.$id}</strong><br>Time: ${b.ts}`;
+    (b.txs||[]).forEach(t=>{
+      const tx = document.createElement('div'); tx.className='txItem';
+      tx.innerHTML=`<b>${t.txHash}</b><br><b>From:</b> ${t.fromAddr}<br><b>To:</b> ${t.toAddr}<br><b>Amount:</b> ${t.amount}<br><b>Memo:</b> ${t.memo||"-"}<br><small>${t.ts}</small>`;
+      d.appendChild(tx);
+    });
+    blocksList.appendChild(d);
+  });
+}
+
+// Initial load
+if(currentUser) renderBlocks();
 </script>
 </body>
 </html>
