@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laam Wallet - 3 Step Demo</title>
+<title>Laam Wallet - Signup/Login Demo</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}
 .container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
@@ -20,42 +20,54 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;}
 </head>
 <body>
 <div class="container">
-  <h1>Laam Wallet Demo - 3 Step Flow</h1>
+  <h1>Laam Wallet Demo - Signup / Login / Wallet</h1>
 
   <!-- Step 1: Signup -->
   <section id="signupSection">
-    <h2>Step 1: Signup</h2>
+    <h2>Signup</h2>
     <input id="nameInput" placeholder="Magacaaga" />
     <input id="contactInput" placeholder="Email ama Phone" />
-    <input id="passwordInput" placeholder="Password" type="password" />
+    <input id="passwordInput" type="password" placeholder="Password" />
     <button id="signupBtn">Codso PIN / OTP</button>
-    <div id="signupStatus" class="status"></div>
+    <div class="status" id="signupStatus"></div>
+    <p>Haddii aad hore u leedahay account, <a href="#" id="gotoLogin">Login halkan</a></p>
   </section>
 
-  <!-- Step 2: Enter PIN -->
+  <!-- Login -->
+  <section id="loginSection" class="hidden">
+    <h2>Login</h2>
+    <input id="loginContact" placeholder="Email ama Phone" />
+    <input id="loginPassword" type="password" placeholder="Password" />
+    <button id="loginBtn">Login</button>
+    <div class="status" id="loginStatus"></div>
+    <p>Haddii account la sameeyay la'aan, <a href="#" id="gotoSignup">Signup halkan</a></p>
+  </section>
+
+  <!-- Step 2: PIN Verification -->
   <section id="pinSection" class="hidden">
-    <h2>Step 2: Geli PIN la diray</h2>
-    <input id="pinInput" placeholder="Geli PIN (123456)" />
+    <h2>Geli PIN la diray</h2>
+    <input id="pinInput" placeholder="PIN (123456)" />
     <button id="verifyPinBtn">Verify PIN</button>
-    <div id="pinStatus" class="status"></div>
+    <div class="status" id="pinStatus"></div>
   </section>
 
-  <!-- Step 3: Wallet Dashboard -->
+  <!-- Step 3: Wallet -->
   <section id="walletSection" class="hidden">
-  <h2>Step 3: Wallet Dashboard</h2>
-  <div><b>Address:</b> <code id="meAddr"></code></div>
-  <div><b>Balance:</b> <span id="meBal"></span></div>
+    <h2>Wallet Dashboard</h2>
+    <div><b>Address:</b> <code id="meAddr"></code></div>
+    <div><b>Balance:</b> <span id="meBal"></span></div>
 
-  <h3>Send Money</h3>
-  <input id="toContact" placeholder="Recipient Phone or Email" />
-  <input id="amount" placeholder="Amount" type="number" />
-  <input id="memo" placeholder="Memo (optional)" />
-  <button id="sendBtn">Dir Lacag</button>
-  <div id="sendStatus" class="status"></div>
+    <h3>Send Money</h3>
+    <input id="toContact" placeholder="Recipient Phone or Email" />
+    <input id="amount" placeholder="Amount" type="number" />
+    <input id="memo" placeholder="Memo (optional)" />
+    <button id="sendBtn">Dir Lacag</button>
+    <div class="status" id="sendStatus"></div>
 
-  <h3>Blocks Explorer</h3>
-  <button id="createBlockBtn">Abuur Block (Mine)</button>
-  <div id="blocksList"></div>
+    <h3>Blocks Explorer</h3>
+    <button id="createBlockBtn">Abuur Block (Mine)</button>
+    <div id="blocksList"></div>
+    <button id="logoutBtn" style="margin-top:10px;background:#ef4444;">Logout</button>
   </section>
 </div>
 
@@ -73,6 +85,7 @@ if(!DB.get('laam_txs')) DB.set('laam_txs',[]);
 
 // ---------------- ELEMENTS ----------------
 const signupSection=document.getElementById('signupSection');
+const loginSection=document.getElementById('loginSection');
 const pinSection=document.getElementById('pinSection');
 const walletSection=document.getElementById('walletSection');
 
@@ -82,13 +95,21 @@ const passwordInput=document.getElementById('passwordInput');
 const signupBtn=document.getElementById('signupBtn');
 const signupStatus=document.getElementById('signupStatus');
 
+const loginContact=document.getElementById('loginContact');
+const loginPassword=document.getElementById('loginPassword');
+const loginBtn=document.getElementById('loginBtn');
+const loginStatus=document.getElementById('loginStatus');
+
+const gotoLogin=document.getElementById('gotoLogin');
+const gotoSignup=document.getElementById('gotoSignup');
+
 const pinInput=document.getElementById('pinInput');
 const verifyPinBtn=document.getElementById('verifyPinBtn');
 const pinStatus=document.getElementById('pinStatus');
 
 const meAddr=document.getElementById('meAddr');
 const meBal=document.getElementById('meBal');
-const toAddr=document.getElementById('toAddr');
+const toContact=document.getElementById('toContact');
 const amount=document.getElementById('amount');
 const memo=document.getElementById('memo');
 const sendBtn=document.getElementById('sendBtn');
@@ -96,23 +117,26 @@ const sendStatus=document.getElementById('sendStatus');
 
 const blocksList=document.getElementById('blocksList');
 const createBlockBtn=document.getElementById('createBlockBtn');
+const logoutBtn=document.getElementById('logoutBtn');
 
 let session=null;
 let otpStore={};
 
-// ---------------- STEP 1: Signup ----------------
+// ---------------- NAV ----------------
+gotoLogin.onclick=(e)=>{e.preventDefault(); signupSection.classList.add('hidden'); loginSection.classList.remove('hidden');}
+gotoSignup.onclick=(e)=>{e.preventDefault(); loginSection.classList.add('hidden'); signupSection.classList.remove('hidden');}
+
+// ---------------- SIGNUP ----------------
 signupBtn.onclick=()=>{
   const name=nameInput.value.trim();
   const contact=contactInput.value.trim();
   const password=passwordInput.value.trim();
   if(!name||!contact||!password){signupStatus.textContent='Geli dhammaan xogta'; return;}
 
-  // Create user with random address
   const users=DB.get('laam_users');
   if(!users[contact]) users[contact]={ name, password, address:generateAddress(), balance:1000, createdAt: nowTs() };
   DB.set('laam_users', users);
 
-  // "Send OTP" demo
   otpStore[contact]='123456';
   signupStatus.textContent='PIN / OTP waa la diray (demo: 123456)';
 
@@ -121,12 +145,27 @@ signupBtn.onclick=()=>{
   pinSection.classList.remove('hidden');
 }
 
-// ---------------- STEP 2: Verify PIN ----------------
+// ---------------- LOGIN ----------------
+loginBtn.onclick=()=>{
+  const contact=loginContact.value.trim();
+  const password=loginPassword.value.trim();
+  const users=DB.get('laam_users');
+  if(!contact||!password){loginStatus.textContent='Geli xogta'; return;}
+  if(!users[contact]||users[contact].password!==password){loginStatus.textContent='Contact ama Password khalad'; return;}
+
+  otpStore[contact]='123456'; // send PIN demo
+  session={contact};
+  loginSection.classList.add('hidden');
+  pinSection.classList.remove('hidden');
+  loginStatus.textContent='';
+}
+
+// ---------------- PIN Verification ----------------
 verifyPinBtn.onclick=()=>{
   const pin=pinInput.value.trim();
   const contact=session?.contact;
-  if(!otpStore[contact]){pinStatus.textContent='OTP lama dirin'; return;}
-  if(pin!==otpStore[contact]){pinStatus.textContent='PIN / OTP khalad ah'; return;}
+  if(!otpStore[contact]){pinStatus.textContent='PIN lama dirin'; return;}
+  if(pin!==otpStore[contact]){pinStatus.textContent='PIN khalad ah'; return;}
 
   pinStatus.textContent='PIN sax ah. Welcome!';
   pinSection.classList.add('hidden');
@@ -139,79 +178,84 @@ verifyPinBtn.onclick=()=>{
   renderBlocks();
 }
 
-// ---------------- STEP 3: Wallet ----------------
-sendBtn.onclick = () => {
-  sendStatus.textContent = '';
-  const contact = session?.contact;
-  const users = DB.get('laam_users');
-  const sender = users[contact];
+// ---------------- SEND ----------------
+sendBtn.onclick=()=>{
+  sendStatus.textContent='';
+  const contact=session?.contact;
+  const users=DB.get('laam_users');
+  const sender=users[contact];
 
-  const recipientContact = toContact.value.trim(); // sax
-  const amt = Number(amount.value);
-  if(!recipientContact || !amt || amt <= 0){ sendStatus.textContent='Geli xog sax ah'; return;}
-  if(sender.balance < amt){ sendStatus.textContent='Balance ma filna'; return;}
+  const recipientContact=toContact.value.trim();
+  const amt=Number(amount.value);
+  if(!recipientContact || !amt || amt<=0){ sendStatus.textContent='Geli xog sax ah'; return;}
+  if(sender.balance<amt){ sendStatus.textContent='Balance ma filna'; return;}
 
   if(!users[recipientContact]){
-      users[recipientContact] = { name:'Unknown', address:generateAddress(), balance:0, createdAt:nowTs() };
+    users[recipientContact]={ name:'Unknown', address:generateAddress(), balance:0, createdAt:nowTs() };
   }
-  const recipient = users[recipientContact];
+  const recipient=users[recipientContact];
 
-  const tx = {
-      txHash: '0x'+uid(12),
-      fromAddr: sender.address,
-      toAddr: recipient.address,
-      amount: amt,
-      memo: memo.value,
-      ts: nowTs()
-  };
+  const tx={ txHash:'0x'+uid(12), fromAddr:sender.address, toAddr:recipient.address, amount:amt, memo:memo.value, ts:nowTs() };
+  const txs=DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
 
-  const txs = DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
-
-  sender.balance -= amt;
-  recipient.balance += amt;
+  sender.balance-=amt;
+  recipient.balance+=amt;
   DB.set('laam_users', users);
 
   createBlock([tx]);
-  meBal.textContent = sender.balance;
-  sendStatus.textContent = "Transfer OK → " + tx.txHash;
+  meBal.textContent=sender.balance;
+  sendStatus.textContent="Transfer OK → "+tx.txHash;
 
   toContact.value=''; amount.value=''; memo.value='';
 }
+
 // ---------------- BLOCKCHAIN ----------------
+function createBlock(txs=[]){
+  const blocks=DB.get('laam_blocks')||[];
+  const prev=blocks.length?blocks[blocks.length-1].hash:'0x0';
+  const block={ index:blocks.length, ts:nowTs(), prevHash:prev, hash:'0x'+uid(20), txs };
+  blocks.push(block); DB.set('laam_blocks', blocks);
+  renderBlocks();
+}
 
 function renderBlocks(){
-  const blocks = DB.get('laam_blocks')||[];
+  const blocks=DB.get('laam_blocks')||[];
   blocksList.innerHTML='';
   for(const b of blocks.slice().reverse()){
-      const d=document.createElement('div'); d.className='block';
-      d.innerHTML = `
-        <strong>Block #${b.index}</strong><br/>
-        Prev: <code>${b.prevHash}</code><br/>
-        Hash: <code>${b.hash}</code><br/>
-        Txs: ${b.txs.length}<br/>
-        Time: ${b.ts}
+    const d=document.createElement('div'); d.className='block';
+    d.innerHTML=`
+      <strong>Block #${b.index}</strong><br>
+      Prev: <code>${b.prevHash}</code><br>
+      Hash: <code>${b.hash}</code><br>
+      Txs: ${b.txs.length}<br>
+      Time: ${b.ts}
+    `;
+    for(const t of b.txs){
+      const tx=document.createElement('div'); tx.className='txItem';
+      tx.innerHTML=`
+        <b>${t.txHash}</b><br>
+        <b>From:</b> ${t.fromAddr}<br>
+        <b>To:</b> ${t.toAddr}<br>
+        <b>Amount:</b> ${t.amount}<br>
+        <b>Memo:</b> ${t.memo||"-"}<br>
+        <small>${t.ts}</small>
       `;
-
-      for(const t of b.txs){
-          const tx = document.createElement('div'); tx.className='txItem';
-          tx.innerHTML = `
-            <b>${t.txHash}</b><br>
-            <b>From:</b> ${t.fromAddr}<br>
-            <b>To:</b> ${t.toAddr}<br>
-            <b>Amount:</b> ${t.amount}<br>
-            <b>Memo:</b> ${t.memo||"-"}<br>
-            <small>${t.ts}</small>
-          `;
-          d.appendChild(tx);
-      }
-      blocksList.appendChild(d);
+      d.appendChild(tx);
+    }
+    blocksList.appendChild(d);
   }
 }
 
-
 // Genesis block
 if(!(DB.get('laam_blocks')||[]).length) createBlock([]);
-renderBlocks();
+
+// ---------------- Logout ----------------
+logoutBtn.onclick=()=>{
+  session=null;
+  walletSection.classList.add('hidden');
+  loginSection.classList.remove('hidden');
+}
+
 </script>
 </body>
 </html>
