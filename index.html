@@ -153,11 +153,17 @@ loginBtn.onclick=()=>{
   if(!contact||!password){loginStatus.textContent='Geli xogta'; return;}
   if(!users[contact]||users[contact].password!==password){loginStatus.textContent='Contact ama Password khalad'; return;}
 
-  otpStore[contact]='123456'; // send PIN demo
+  // -------------------
+  // PIN verification dhaaf
+  // -------------------
   session={contact};
   loginSection.classList.add('hidden');
-  pinSection.classList.remove('hidden');
-  loginStatus.textContent='';
+  walletSection.classList.remove('hidden');
+
+  const user = users[contact];
+  meAddr.textContent = user.address;
+  meBal.textContent = user.balance;
+  renderBlocks();
 }
 
 // ---------------- PIN Verification ----------------
