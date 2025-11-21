@@ -146,22 +146,20 @@ sendBtn.onclick = () => {
   const users = DB.get('laam_users');
   const sender = users[contact];
 
-  const recipientContact = toAddr.value.trim(); // Halkan user galiyaa phone/email
+  const recipientContact = toContact.value.trim(); // sax
   const amt = Number(amount.value);
   if(!recipientContact || !amt || amt <= 0){ sendStatus.textContent='Geli xog sax ah'; return;}
   if(sender.balance < amt){ sendStatus.textContent='Balance ma filna'; return;}
 
-  // Hubi haddii recipient uu jiro, haddii uusan jirin abuur user cusub
   if(!users[recipientContact]){
       users[recipientContact] = { name:'Unknown', address:generateAddress(), balance:0, createdAt:nowTs() };
   }
   const recipient = users[recipientContact];
 
-  // samee transaction
   const tx = {
       txHash: '0x'+uid(12),
-      fromAddr: sender.address,  // kaliya address ayaa la isticmaalaa
-      toAddr: recipient.address, // kaliya address ayaa la isticmaalaa
+      fromAddr: sender.address,
+      toAddr: recipient.address,
       amount: amt,
       memo: memo.value,
       ts: nowTs()
@@ -177,8 +175,8 @@ sendBtn.onclick = () => {
   meBal.textContent = sender.balance;
   sendStatus.textContent = "Transfer OK → " + tx.txHash;
 
-  toAddr.value=''; amount.value=''; memo.value='';
-  }
+  toContact.value=''; amount.value=''; memo.value='';
+}
 // ---------------- BLOCKCHAIN ----------------
 
 function renderBlocks(){
