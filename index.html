@@ -45,7 +45,7 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;
     <p>Haddii account la sameeyay la'aan, <a href="#" id="gotoSignup">Signup halkan</a></p>
   </section>
 
-  <!-- Step 2: PIN Verification -->
+  <!-- : PIN Verification -->
   <section id="pinSection" class="hidden">
     <h2>Geli PIN la diray</h2>
     <input id="pinInput" placeholder="PIN (123456)" />
@@ -53,16 +53,19 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;
     <div class="status" id="pinStatus"></div>
   </section>
 
-  <!-- Step 3: Wallet -->
+  <!-- : Wallet -->
   <section id="walletSection" class="hidden">
     <h2>Wallet Dashboard</h2>
     <div><b>Address:</b> <code id="meAddr"></code></div>
     <div><b>Balance:</b> <span id="meBal"></span></div>
 
-    <!-- Send Money Wizard -->
- <h3>Send Money</h3>
-<button id="startSendBtn">Send Money</button>
+<h3>Send Money</h3>
+<div style="display:flex; gap:10px; margin-bottom:12px;">
+  <button id="startSendBtn" style="flex:1;">Send Money</button>
+  <button id="receiveBtn" style="flex:1; background:#10b981;">Receive</button>
+</div>
 
+<!-- Send Wizard -->
 <div id="sendWizard" class="hidden" style="margin-top:12px;">
   <!-- Step 1: Recipient -->
   <div id="step1">
@@ -93,6 +96,14 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;
     <button id="sendWizardBtn">Send</button>
   </div>
   <div id="sendStatus" class="status"></div>
+</div>
+
+<!-- Receive Section -->
+<div id="receiveSection" class="hidden" style="margin-top:12px; padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#f0fdf4;">
+  <p><b>Your Wallet Address:</b></p>
+  <code id="receiveAddr" style="word-break: break-all;"></code>
+  <button id="copyAddrBtn" style="margin-top:8px; background:#2563eb; color:#fff; border-radius:6px; padding:6px 12px;">Copy Address</button>
+  <div id="receiveStatus" class="status"></div>
 </div>
 
     <!-- Explorer Button -->
@@ -150,23 +161,29 @@ const logoutBtn=document.getElementById('logoutBtn');
 
 // Wizard elements
 const startSendBtn = document.getElementById('startSendBtn');
+const receiveBtn = document.getElementById('receiveBtn');
 const sendWizard = document.getElementById('sendWizard');
+const receiveSection = document.getElementById('receiveSection');
+
+const wizardToContact = document.getElementById('wizardToContact');
+const wizardAmount = document.getElementById('wizardAmount');
+const wizardMemo = document.getElementById('wizardMemo');
+const sendWizardBtn = document.getElementById('sendWizardBtn');
 
 const step1 = document.getElementById('step1');
 const step2 = document.getElementById('step2');
 const step3 = document.getElementById('step3');
 const step4 = document.getElementById('step4');
 
-const wizardToContact = document.getElementById('wizardToContact');
-const wizardAmount = document.getElementById('wizardAmount');
-const wizardMemo = document.getElementById('wizardMemo');
-
 const confirmTo = document.getElementById('confirmTo');
 const confirmAmount = document.getElementById('confirmAmount');
 const confirmMemo = document.getElementById('confirmMemo');
-
-const sendWizardBtn = document.getElementById('sendWizardBtn');
 const sendStatus = document.getElementById('sendStatus');
+
+const receiveAddr = document.getElementById('receiveAddr');
+const copyAddrBtn = document.getElementById('copyAddrBtn');
+const receiveStatus = document.getElementById('receiveStatus');
+
 let session=null;
 let otpStore={};
 
@@ -221,67 +238,82 @@ verifyPinBtn.onclick=()=>{
   renderBlocks();
 }
 
-// ---------------- SEND WIZARD ----------------
+// ---------------- Send Money Button ----------------
 startSendBtn.onclick = () => {
   sendWizard.classList.remove('hidden');
-  startSendBtn.disabled = true; // disable until wizard ends
-}
+  receiveSection.classList.add('hidden'); // hide receive if open
+};
 
 // Step navigation
 document.getElementById('next1').onclick = () => {
-  if(!wizardToContact.value.trim()){ sendStatus.textContent="Geli recipient"; return; }
+  if(!wizardToContact.value.trim()){ sendStatus.textContent="Geli recipient"; return;}
   step1.classList.add('hidden'); step2.classList.remove('hidden'); sendStatus.textContent='';
-}
-document.getElementById('prev2').onclick = () => { step2.classList.add('hidden'); step1.classList.remove('hidden'); }
+};
+document.getElementById('prev2').onclick = () => { step2.classList.add('hidden'); step1.classList.remove('hidden'); };
 document.getElementById('next2').onclick = () => {
-  if(!wizardAmount.value || Number(wizardAmount.value)<=0){ sendStatus.textContent="Geli amount sax ah"; return; }
+  if(!wizardAmount.value || Number(wizardAmount.value)<=0){ sendStatus.textContent="Geli amount sax ah"; return;}
   step2.classList.add('hidden'); step3.classList.remove('hidden'); sendStatus.textContent='';
-}
-document.getElementById('prev3').onclick = () => { step3.classList.add('hidden'); step2.classList.remove('hidden'); }
+};
+document.getElementById('prev3').onclick = () => { step3.classList.add('hidden'); step2.classList.remove('hidden'); };
 document.getElementById('next3').onclick = () => {
   step3.classList.add('hidden'); step4.classList.remove('hidden');
   confirmTo.textContent = wizardToContact.value.trim();
   confirmAmount.textContent = wizardAmount.value;
   confirmMemo.textContent = wizardMemo.value || "-";
-}
-document.getElementById('prev4').onclick = () => { step4.classList.add('hidden'); step3.classList.remove('hidden'); }
+};
+document.getElementById('prev4').onclick = () => { step4.classList.add('hidden'); step3.classList.remove('hidden'); };
 
-// Send final transaction
+// Final send
 sendWizardBtn.onclick = () => {
   sendStatus.textContent='';
   const contact = session?.contact;
   const users = DB.get('laam_users');
   const sender = users[contact];
-
   const recipientContact = wizardToContact.value.trim();
   const amt = Number(wizardAmount.value);
   const memoVal = wizardMemo.value;
 
-  if(sender.balance < amt){ sendStatus.textContent='Balance ma filna'; return; }
+  if(sender.balance < amt){ sendStatus.textContent='Balance ma filna'; return;}
   if(!users[recipientContact]){
-    users[recipientContact] = { name:'Unknown', address: generateAddress(), balance:0, createdAt: nowTs() };
+    users[recipientContact]={ name:'Unknown', address:generateAddress(), balance:0, createdAt:nowTs() };
   }
   const recipient = users[recipientContact];
 
-  const tx = { txHash: '0x'+uid(12), fromAddr: sender.address, toAddr: recipient.address, amount: amt, memo: memoVal, ts: nowTs() };
+  const tx = { txHash:'0x'+uid(12), fromAddr:sender.address, toAddr:recipient.address, amount:amt, memo:memoVal, ts:nowTs() };
   const txs = DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
 
   sender.balance -= amt;
   recipient.balance += amt;
   DB.set('laam_users', users);
 
-  createBlock([tx]);
   meBal.textContent = sender.balance;
-  sendStatus.textContent = "Transfer OK → " + tx.txHash;
+  sendStatus.textContent="Transfer OK → "+tx.txHash;
 
   // Reset wizard
-  wizardToContact.value=''; wizardAmount.value=''; wizardMemo.value='';
-  step4.classList.add('hidden');
-  step1.classList.remove('hidden');
   sendWizard.classList.add('hidden');
-  startSendBtn.disabled = false;
-}
+  step1.classList.remove('hidden');
+  step2.classList.add('hidden');
+  step3.classList.add('hidden');
+  step4.classList.add('hidden');
+  wizardToContact.value=''; wizardAmount.value=''; wizardMemo.value='';
+  createBlock([tx]);
+};
 
+// ---------------- Receive Button ----------------
+receiveBtn.onclick = () => {
+  sendWizard.classList.add('hidden'); // hide send wizard
+  receiveSection.classList.toggle('hidden');
+
+  const user = DB.get('laam_users')[session.contact];
+  receiveAddr.textContent = user.address;
+};
+
+// ---------------- Copy Address ----------------
+copyAddrBtn.onclick = () => {
+  navigator.clipboard.writeText(receiveAddr.textContent)
+    .then(()=>{ receiveStatus.textContent="Address la copy gareeyay!"; })
+    .catch(()=>{ receiveStatus.textContent="Copy failed"; });
+};
 // ---------------- BLOCKCHAIN ----------------
 createBlockBtn.onclick=()=>{ blocksList.scrollIntoView({behavior:"smooth",block:"center"}); }
 
