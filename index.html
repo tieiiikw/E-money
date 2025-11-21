@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laam Demo - Decentralized Phone Wallet</title>
+<title>Laam Demo - Decentralized Phone Wallet (Updated)</title>
 
 <style>
 body{
@@ -31,18 +31,22 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px}
   padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;
   border:1px solid #eef2ff
 }
+.txItem{
+  font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;
+  border:1px solid #e5e7eb;
+}
 </style>
 
 </head>
 <body>
 <div class="container">
-  <h1>Laam Demo (Phone → Phone) - One Page</h1>
+  <h1>Laam Demo - Decentralized Phone Wallet</h1>
 
   <!-- REGISTER -->
   <section id="register">
     <h2>1) Diiwaangelin / Create Account</h2>
     <input id="phoneInput" placeholder="+2519..." />
-    <button id="reqOtpBtn">Codso OTP (Simulated)</button>
+    <button id="reqOtpBtn">Codso OTP (Demo)</button>
 
     <div id="otpArea" class="hidden">
       <input id="otpInput" placeholder="Geli OTP (123456)" />
@@ -72,7 +76,7 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px}
 
   <!-- EXPLORER -->
   <section id="explorer">
-    <h2>Explorer (Blocks & Tx)</h2>
+    <h2>Explorer (Blocks & Transactions)</h2>
     <button id="createBlockBtn">Abuur Block (Mine)</button>
     <div id="blocksList"></div>
   </section>
@@ -131,11 +135,8 @@ reqOtpBtn.onclick=()=>{
   const phone=phoneInput.value.trim();
   if(!phone){ regStatus.textContent='Geli phone sax ah'; return; }
 
-  const otp="123456";      // STATIC DEMO OTP
-  otpStore[phone]={otp,ts:Date.now()};
-
-  console.log("[SMS MOCK] OTP:", otp);
-  regStatus.textContent="OTP waa la diray (fake). Geli 123456";
+  otpStore[phone]={otp:"123456",ts:Date.now()};
+  regStatus.textContent="OTP waa la diray (demo): 123456";
 
   otpArea.classList.remove('hidden');
 };
@@ -148,14 +149,13 @@ verifyOtpBtn.onclick=()=>{
   if(!otpStore[phone]){ regStatus.textContent='OTP lama dirin'; return; }
   if(code!=="123456"){ regStatus.textContent='OTP khalad ah'; return; }
 
-  // Save user
   const users=DB.get('laam_users');
   if(!users[phone]){
-    users[phone]={ address:mkAddress(phone), createdAt:nowTs(), balance:1000 };
+    users[phone]={address:mkAddress(phone),createdAt:nowTs(),balance:1000};
     DB.set('laam_users', users);
   }
 
-  session={ phone, address:users[phone].address };
+  session={phone,address:users[phone].address};
   DB.set('laam_session', session);
 
   regStatus.textContent='OTP OK. Wallet Ready.';
@@ -166,8 +166,7 @@ verifyOtpBtn.onclick=()=>{
 
 // ---------------- SHOW WALLET ----------------
 function showWallet(phone){
-  const users=DB.get('laam_users');
-  const u=users[phone];
+  const u=DB.get('laam_users')[phone];
 
   walletSection.classList.remove('hidden');
   sendSection.classList.remove('hidden');
@@ -187,7 +186,7 @@ sendBtn.onclick=()=>{
   const to=toPhone.value.trim();
   const amt=Number(amount.value);
 
-  if(!to||!amt||amt<=0){ sendStatus.textContent='Geli xogta saxda ah'; return; }
+  if(!to||!amt||amt<=0){ sendStatus.textContent='Geli xog sax ah'; return; }
 
   const users=DB.get('laam_users');
   if(!users[to]) users[to]={address:mkAddress(to),createdAt:nowTs(),balance:0};
@@ -197,12 +196,16 @@ sendBtn.onclick=()=>{
 
   const tx={
     txHash:'0x'+uid(12),
-    fromPhone:from,toPhone:to,
-    fromAddr:sender.address,toAddr:users[to].address,
-    amount:amt,memo:memo.value,ts:nowTs()
+    fromAddr:sender.address,
+    toAddr:users[to].address,
+    amount:amt,
+    memo:memo.value,
+    ts:nowTs()
   };
 
-  const txs=DB.get('laam_txs'); txs.push(tx); DB.set('laam_txs', txs);
+  const txs=DB.get('laam_txs'); 
+  txs.push(tx); 
+  DB.set('laam_txs', txs);
 
   sender.balance-=amt;
   users[to].balance+=amt;
@@ -216,7 +219,7 @@ sendBtn.onclick=()=>{
   toPhone.value=''; amount.value=''; memo.value='';
 };
 
-// ---------------- BLOCKS ----------------
+// ---------------- BLOCKCHAIN ----------------
 createBlockBtn.onclick=()=>createBlock([]);
 
 function createBlock(txs=[]){
@@ -236,6 +239,7 @@ function createBlock(txs=[]){
   renderBlocks();
 }
 
+// ---------------- DISPLAY BLOCKS ----------------
 function renderBlocks(){
   const blocks=DB.get('laam_blocks');
   blocksList.innerHTML='';
@@ -244,25 +248,33 @@ function renderBlocks(){
     const d=document.createElement('div');
     d.className='block';
     d.innerHTML=`
-      <strong>Block #${b.index}</strong>
-      <div>hash: <code>${b.hash}</code></div>
-      <div>txs: ${b.txs.length}</div>
-      <div>ts: ${b.ts}</div>
+      <strong>Block #${b.index}</strong><br/>
+      Prev: <code>${b.prevHash}</code><br/>
+      Hash: <code>${b.hash}</code><br/>
+      Txs: ${b.txs.length}<br/>
+      Time: ${b.ts}
     `;
+
     for(const t of b.txs){
       const tx=document.createElement('div');
-      tx.style.marginTop='6px';
-      tx.textContent=`${t.txHash} | ${t.fromPhone} → ${t.toPhone} : ${t.amount}`;
+      tx.className='txItem';
+      tx.innerHTML = `
+        <b>${t.txHash}</b><br/>
+        <b>From:</b> ${t.fromAddr}<br/>
+        <b>To:</b> ${t.toAddr}<br/>
+        <b>Amount:</b> ${t.amount}<br/>
+        <b>Memo:</b> ${t.memo || "-"}<br/>
+        <small>${t.ts}</small>
+      `;
       d.appendChild(tx);
     }
     blocksList.appendChild(d);
   }
 }
 
-// Genesis block
-if(!(DB.get('laam_blocks')||[]).length) createBlock([]);
+// Genesis block if empty
+if(!DB.get('laam_blocks').length) createBlock([]);
 renderBlocks();
-
 </script>
 </body>
 </html>
