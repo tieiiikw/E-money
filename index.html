@@ -3,44 +3,25 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laam Demo - Decentralized Phone Wallet (Updated)</title>
+<title>Laam Demo - Decentralized Phone Wallet (Phone-Free Blocks)</title>
 
 <style>
-body{
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-  padding:18px;background:#f7f7fb;color:#222;
-}
-.container{
-  max-width:720px;margin:0 auto;background:#fff;padding:18px;
-  border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06)
-}
-h1{margin-top:0;font-size:20px}
-input{
-  display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;
-  border:1px solid #ddd;border-radius:6px
-}
-button{
-  padding:10px 14px;border-radius:8px;border:0;background:#2563eb;
-  color:#fff;cursor:pointer;margin-top:6px
-}
-.hidden{display:none}
-.status{margin-top:8px;color:#444;font-size:14px}
-code{background:#f3f4f6;padding:4px 6px;border-radius:6px}
-#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px}
-.block{
-  padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;
-  border:1px solid #eef2ff
-}
-.txItem{
-  font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;
-  border:1px solid #e5e7eb;
-}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}
+.container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
+h1{margin-top:0;font-size:20px;}
+input{display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;}
+button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer;margin-top:6px;}
+.hidden{display:none;}
+.status{margin-top:8px;color:#444;font-size:14px;}
+code{background:#f3f4f6;padding:4px 6px;border-radius:6px;}
+#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px;}
+.block{padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;}
+.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;}
 </style>
-
 </head>
 <body>
 <div class="container">
-  <h1>Laam Demo - Decentralized Phone Wallet</h1>
+  <h1>Laam Demo - Decentralized Phone Wallet (Phone-Free Blocks)</h1>
 
   <!-- REGISTER -->
   <section id="register">
@@ -80,7 +61,6 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px}
     <button id="createBlockBtn">Abuur Block (Mine)</button>
     <div id="blocksList"></div>
   </section>
-
 </div>
 
 <script>
@@ -88,17 +68,13 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px}
 function uid(len=8){ return Math.random().toString(16).slice(2,2+len) }
 function nowTs(){ return new Date().toISOString() }
 
-// Generate random 0x address
+// Generate random 0x address (phone-free)
 function generateAddress() {
     return '0x' + Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join('');
 }
-  
-// ---------------- STORAGE ----------------
-const DB={
-  get(k){ return JSON.parse(localStorage.getItem(k)||'null') },
-  set(k,v){ localStorage.setItem(k, JSON.stringify(v)) }
-};
 
+// ---------------- STORAGE ----------------
+const DB={get:k=>JSON.parse(localStorage.getItem(k)||'null'), set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
 if(!DB.get('laam_users')) DB.set('laam_users',{});
 if(!DB.get('laam_blocks')) DB.set('laam_blocks',[]);
 if(!DB.get('laam_txs')) DB.set('laam_txs',[]);
@@ -137,7 +113,6 @@ reqOtpBtn.onclick=()=>{
 
   otpStore[phone]={otp:"123456",ts:Date.now()};
   regStatus.textContent="OTP waa la diray (demo): 123456";
-
   otpArea.classList.remove('hidden');
 };
 
@@ -145,13 +120,14 @@ reqOtpBtn.onclick=()=>{
 verifyOtpBtn.onclick=()=>{
   const phone=phoneInput.value.trim();
   const code=otpInput.value.trim();
+  const users=DB.get('laam_users');
 
   if(!otpStore[phone]){ regStatus.textContent='OTP lama dirin'; return; }
   if(code!=="123456"){ regStatus.textContent='OTP khalad ah'; return; }
 
-  const users=DB.get('laam_users');
+  // Create user with random address
   if(!users[phone]){
-    users[phone]={address:mkAddress(phone),createdAt:nowTs(),balance:1000};
+    users[phone]={address:generateAddress(),createdAt:nowTs(),balance:1000};
     DB.set('laam_users', users);
   }
 
@@ -189,7 +165,7 @@ sendBtn.onclick=()=>{
   if(!to||!amt||amt<=0){ sendStatus.textContent='Geli xog sax ah'; return; }
 
   const users=DB.get('laam_users');
-  if(!users[to]) users[to]={address:mkAddress(to),createdAt:nowTs(),balance:0};
+  if(!users[to]) users[to]={address:generateAddress(),createdAt:nowTs(),balance:0};
 
   const sender=users[from];
   if(sender.balance<amt){ sendStatus.textContent='Balance ma filna'; return; }
