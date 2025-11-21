@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="so">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Laam Demo - Phone→Phone Payments (Mock)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Laam Demo (Phone → Phone) - GitHub Pages</h1>
+
+    <section id="register">
+      <h2>1) Diiwaangelin / Create Account</h2>
+      <input id="phoneInput" placeholder="+2519..." />
+      <button id="reqOtpBtn">Codso OTP (Simulated SMS)</button>
+      <div id="otpArea" class="hidden">
+        <input id="otpInput" placeholder="Geli OTP" />
+        <button id="verifyOtpBtn">Verify OTP</button>
+      </div>
+      <div id="regStatus" class="status"></div>
+    </section>
+
+    <section id="wallet" class="hidden">
+      <h2>Wallet-kaaga</h2>
+      <div>Phone: <span id="mePhone"></span></div>
+      <div>Address: <code id="meAddr"></code></div>
+      <div>Balance (mock): <span id="meBal">1000</span></div>
+    </section>
+
+    <section id="send" class="hidden">
+      <h2>2) Dir Lacag (by Phone)</h2>
+      <input id="toPhone" placeholder="Recipient +2519..." />
+      <input id="amount" placeholder="Amount" type="number" />
+      <input id="memo" placeholder="Memo (optional)" />
+      <button id="sendBtn">Dir</button>
+      <div id="sendStatus" class="status"></div>
+    </section>
+
+    <section id="explorer">
+      <h2>Explorer (Mock blocks & txs)</h2>
+      <button id="createBlockBtn">Create Block (simulate mine)</button>
+      <div id="blocksList"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
