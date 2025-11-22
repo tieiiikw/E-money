@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laam Wallet - Supabase Real</title>
+<title>Laam Wallet - Supabase</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}
 .container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
@@ -127,373 +127,197 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;
   </section>
 </div>
 
-<!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ------------ CONFIG: put your Supabase values (you already gave them) ------------ */
-const SUPA_URL = "https://spmzrkfqvtvenmleygm.supabase.co";
-const SUPA_KEY = "sb_publishable_XBatqVoB_J8yXn_G_xB9XQ_TNGaBSqp";
-/* ------------------------------------------------------------------------------- */
-
+// ---------------- CONFIG ----------------
+const SUPA_URL = "https://spsmzrkfqvtvenmleygm.supabase.co";
+const SUPA_KEY = "YOUR_ANON_KEY_HERE"; // replace with your Supabase anon key
 const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ---------------- UTILS ----------------
 function uid(len=8){ return Math.random().toString(16).slice(2,2+len) }
 function nowTs(){ return new Date().toISOString() }
-function generateAddress() { return '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
-
+function generateAddress(){ return '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
 function el(id){ return document.getElementById(id) }
 
 // ---------------- ELEMENTS ----------------
-const signupSection = el('signupSection');
-const loginSection = el('loginSection');
-const pinSection = el('pinSection');
-const walletSection = el('walletSection');
-
-const nameInput = el('nameInput');
-const contactInput = el('contactInput');
-const passwordInput = el('passwordInput');
-const signupBtn = el('signupBtn');
-const signupStatus = el('signupStatus');
-
-const loginContact = el('loginContact');
-const loginPassword = el('loginPassword');
-const loginBtn = el('loginBtn');
-const loginStatus = el('loginStatus');
-
-const gotoLogin = el('gotoLogin');
-const gotoSignup = el('gotoSignup');
-
-const pinInput = el('pinInput');
-const verifyPinBtn = el('verifyPinBtn');
-const pinStatus = el('pinStatus');
-
-const meAddr = el('meAddr');
-const meBal = el('meBal');
-
-const startSendBtn = el('startSendBtn');
-const receiveBtn = el('receiveBtn');
-const sendWizard = el('sendWizard');
-const receiveSection = el('receiveSection');
-
-const wizardToContact = el('wizardToContact');
-const wizardAmount = el('wizardAmount');
-const wizardMemo = el('wizardMemo');
-const sendWizardBtn = el('sendWizardBtn');
-
+const signupSection = el('signupSection'), loginSection = el('loginSection'), pinSection = el('pinSection'), walletSection = el('walletSection');
+const nameInput = el('nameInput'), contactInput = el('contactInput'), passwordInput = el('passwordInput'), signupBtn = el('signupBtn'), signupStatus = el('signupStatus');
+const loginContact = el('loginContact'), loginPassword = el('loginPassword'), loginBtn = el('loginBtn'), loginStatus = el('loginStatus');
+const gotoLogin = el('gotoLogin'), gotoSignup = el('gotoSignup');
+const pinInput = el('pinInput'), verifyPinBtn = el('verifyPinBtn'), pinStatus = el('pinStatus');
+const meAddr = el('meAddr'), meBal = el('meBal');
+const startSendBtn = el('startSendBtn'), receiveBtn = el('receiveBtn'), sendWizard = el('sendWizard'), receiveSection = el('receiveSection');
+const wizardToContact = el('wizardToContact'), wizardAmount = el('wizardAmount'), wizardMemo = el('wizardMemo'), sendWizardBtn = el('sendWizardBtn');
 const step1 = el('step1'), step2 = el('step2'), step3 = el('step3'), step4 = el('step4');
 const confirmTo = el('confirmTo'), confirmAmount = el('confirmAmount'), confirmMemo = el('confirmMemo');
 const sendStatus = el('sendStatus');
-
 const receiveAddr = el('receiveAddr'), copyAddrBtn = el('copyAddrBtn'), receiveStatus = el('receiveStatus');
-const createBlockBtn = el('createBlockBtn');
-const blocksList = el('blocksList');
-const logoutBtn = el('logoutBtn');
+const createBlockBtn = el('createBlockBtn'), blocksList = el('blocksList'), logoutBtn = el('logoutBtn');
 
-let session = null; // will store { id, contact, name, address, balance }
-let otpLocalStore = {}; // keep a small client-side copy to show "sent" OTP for demo (real SMS requires SMS provider)
+let session = null;
+let otpLocalStore = {};
 
-// ---------------- NAV handlers ----------------
-gotoLogin && (gotoLogin.onclick = (e)=>{ e && e.preventDefault(); signupSection.classList.add('hidden'); loginSection.classList.remove('hidden'); });
-gotoSignup && (gotoSignup.onclick = (e)=>{ e && e.preventDefault(); loginSection.classList.add('hidden'); signupSection.classList.remove('hidden'); });
+// ---------------- NAV ----------------
+gotoLogin.onclick = (e)=>{ e.preventDefault(); signupSection.classList.add('hidden'); loginSection.classList.remove('hidden'); }
+gotoSignup.onclick = (e)=>{ e.preventDefault(); loginSection.classList.add('hidden'); signupSection.classList.remove('hidden'); }
 
-// ---------------- Supabase helpers ----------------
-async function getUserByContact(contact){
-  const { data, error } = await supabase.from('users').select('*').eq('contact', contact).maybeSingle();
-  if(error) throw error;
-  return data;
-}
-async function createUser({ name, contact, password }){
-  const address = generateAddress();
-  const { data, error } = await supabase.from('users').insert([{
-    name, contact, password, address, balance:1000, created_at: nowTs()
-  }]).select().single();
-  if(error) throw error;
-  return data;
-}
-async function updateUserOtp(contact, otp, expiryIso){
-  const { data, error } = await supabase.from('users')
-    .update({ otp, otp_expiry: expiryIso })
-    .eq('contact', contact)
-    .select()
-    .single();
-  if(error) throw error;
-  return data;
-}
-async function fetchUserById(id){
-  const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
-  if(error) throw error;
-  return data;
-}
+// ---------------- HELPERS ----------------
+async function getUserByContact(contact){ const { data, error } = await supabase.from('users').select('*').eq('contact', contact).maybeSingle(); if(error) throw error; return data; }
+async function createUser({ name, contact, password }){ const address = generateAddress(); const { data, error } = await supabase.from('users').insert([{ name, contact, password, address, balance:1000, created_at: nowTs() }]).select().single(); if(error) throw error; return data; }
+async function updateUserOtp(contact, otp, expiryIso){ const { data, error } = await supabase.from('users').update({ otp, otp_expiry: expiryIso }).eq('contact', contact).select().single(); if(error) throw error; return data; }
+async function fetchUserById(id){ const { data, error } = await supabase.from('users').select('*').eq('id', id).single(); if(error) throw error; return data; }
 
-// ---------------- Signup flow ----------------
-signupBtn.onclick = async () => {
-  signupStatus.textContent = '';
-  const name = nameInput.value.trim();
-  const contact = contactInput.value.trim();
-  const password = passwordInput.value.trim();
-  if(!name || !contact || !password){ signupStatus.textContent = 'Geli dhammaan xogta'; return; }
-
+// ---------------- SIGNUP ----------------
+signupBtn.onclick = async ()=>{
+  signupStatus.textContent=''; const name=nameInput.value.trim(), contact=contactInput.value.trim(), password=passwordInput.value.trim();
+  if(!name||!contact||!password){ signupStatus.textContent='Geli dhammaan xogta'; return; }
   try{
-    // if user exists, don't re-create; just proceed to OTP
     let user = await getUserByContact(contact);
-    if(!user){
-      user = await createUser({ name, contact, password });
-    }
-
-    // generate OTP & expiry (10 minutes)
-    const otp = String(Math.floor(100000 + Math.random()*900000));
-    const otpExpiry = new Date(Date.now() + 10*60*1000).toISOString();
-
-    await updateUserOtp(contact, otp, otpExpiry);
-    otpLocalStore[contact] = otp; // for demo; in prod you'd send via SMS/email
-
-    signupStatus.textContent = 'OTP waa la diray (demo). Geli PIN-ka.';
-    console.log('MOCK OTP for', contact, otp);
-
-    // store session minimal and show PIN screen
-    session = { id: user.id, contact: user.contact };
-    signupSection.classList.add('hidden');
-    pinSection.classList.remove('hidden');
-
-  }catch(err){
-    console.error(err);
-    signupStatus.textContent = 'Error: ' + (err.message || JSON.stringify(err));
-  }
+    if(!user){ user = await createUser({ name, contact, password }); }
+    const otp = String(Math.floor(100000+Math.random()*900000));
+    const otpExpiry = new Date(Date.now()+10*60*1000).toISOString();
+    await updateUserOtp(contact, otp, otpExpiry); otpLocalStore[contact]=otp; console.log('MOCK OTP for', contact, otp);
+    signupStatus.textContent='OTP waa la diray (demo)';
+    session={id:user.id, contact:user.contact}; signupSection.classList.add('hidden'); pinSection.classList.remove('hidden');
+  }catch(err){ console.error(err); signupStatus.textContent='Error: '+err.message; }
 }
 
-// ---------------- Login flow ----------------
-loginBtn.onclick = async () => {
-  loginStatus.textContent = '';
-  const contact = loginContact.value.trim();
-  const password = loginPassword.value.trim();
-  if(!contact||!password){ loginStatus.textContent = 'Geli xogta'; return; }
-
+// ---------------- LOGIN ----------------
+loginBtn.onclick=async()=>{
+  loginStatus.textContent=''; const contact=loginContact.value.trim(), password=loginPassword.value.trim();
+  if(!contact||!password){ loginStatus.textContent='Geli xogta'; return; }
   try{
-    const user = await getUserByContact(contact);
-    if(!user || user.password !== password){ loginStatus.textContent = 'Contact ama Password khalad'; return; }
-
-    // generate OTP for this login attempt
-    const otp = String(Math.floor(100000 + Math.random()*900000));
-    const otpExpiry = new Date(Date.now() + 10*60*1000).toISOString();
-    await updateUserOtp(contact, otp, otpExpiry);
-    otpLocalStore[contact] = otp;
-    console.log('MOCK OTP for login', contact, otp);
-
-    // set session and show PIN
-    session = { id: user.id, contact: user.contact };
-    loginSection.classList.add('hidden');
-    pinSection.classList.remove('hidden');
-    loginStatus.textContent = 'OTP waa la diray (demo). Geli PIN-ka.';
-  }catch(err){
-    console.error(err);
-    loginStatus.textContent = 'Error: ' + (err.message || JSON.stringify(err));
-  }
+    const user = await getUserByContact(contact); if(!user||user.password!==password){ loginStatus.textContent='Contact ama Password khalad'; return; }
+    const otp=String(Math.floor(100000+Math.random()*900000)); const otpExpiry=new Date(Date.now()+10*60*1000).toISOString();
+    await updateUserOtp(contact, otp, otpExpiry); otpLocalStore[contact]=otp; console.log('MOCK OTP for login', contact, otp);
+    session={id:user.id, contact:user.contact}; loginSection.classList.add('hidden'); pinSection.classList.remove('hidden'); loginStatus.textContent='OTP waa la diray (demo)';
+  }catch(err){ console.error(err); loginStatus.textContent='Error: '+err.message; }
 }
 
-// ---------------- PIN verify ----------------
-verifyPinBtn.onclick = async () => {
-  pinStatus.textContent = '';
-  const pin = pinInput.value.trim();
-  const contact = session?.contact;
-  if(!contact){ pinStatus.textContent = 'No session'; return; }
-  if(!pin){ pinStatus.textContent = 'Geli PIN'; return; }
-
+// ---------------- PIN VERIFY ----------------
+verifyPinBtn.onclick=async()=>{
+  pinStatus.textContent=''; const pin=pinInput.value.trim(), contact=session?.contact;
+  if(!contact){ pinStatus.textContent='No session'; return; } if(!pin){ pinStatus.textContent='Geli PIN'; return; }
   try{
-    const { data: user, error } = await supabase.from('users').select('*').eq('contact', contact).maybeSingle();
-    if(error) throw error;
-    if(!user || !user.otp){ pinStatus.textContent = 'PIN lama dirin ama user ma jiro'; return; }
-
-    const now = new Date();
-    const expiry = user.otp_expiry ? new Date(user.otp_expiry) : null;
-    if(user.otp !== pin){ pinStatus.textContent = 'PIN khalad ah'; return; }
-    if(expiry && expiry < now){ pinStatus.textContent = 'PIN waa dhacay'; return; }
-
-    // success -> clear otp in db (optional) and open wallet
-    await supabase.from('users').update({ otp: null, otp_expiry: null }).eq('contact', contact);
-
-    // refresh user data
-    const fresh = await getUserByContact(contact);
-    session = { id: fresh.id, contact: fresh.contact, name: fresh.name, address: fresh.address };
-
-    pinSection.classList.add('hidden');
-    walletSection.classList.remove('hidden');
-
-    meAddr.textContent = fresh.address;
-    meBal.textContent = String(fresh.balance || 0);
-
-    pinStatus.textContent = 'PIN sax ah. Wallet la furay.';
+    const user=await getUserByContact(contact); if(!user||!user.otp){ pinStatus.textContent='PIN lama dirin ama user ma jiro'; return; }
+    const now=new Date(), expiry=user.otp_expiry?new Date(user.otp_expiry):null;
+    if(user.otp!==pin){ pinStatus.textContent='PIN khalad ah'; return; }
+    if(expiry && expiry<now){ pinStatus.textContent='PIN waa dhacay'; return; }
+    await supabase.from('users').update({ otp:null, otp_expiry:null }).eq('contact', contact);
+    const fresh=await getUserByContact(contact); session={id:fresh.id, contact:fresh.contact, name:fresh.name, address:fresh.address};
+    pinSection.classList.add('hidden'); walletSection.classList.remove('hidden'); meAddr.textContent=fresh.address; meBal.textContent=String(fresh.balance||0); pinStatus.textContent='PIN sax ah. Wallet la furay.';
     renderBlocks();
-
-  }catch(err){
-    console.error(err);
-    pinStatus.textContent = 'Error: ' + (err.message || JSON.stringify(err));
-  }
+  }catch(err){ console.error(err); pinStatus.textContent='Error: '+err.message; }
 }
 
-// ---------------- Send Wizard logic ----------------
-el('cancel1').onclick = ()=>{ sendWizard.classList.add('hidden'); step1.classList.remove('hidden'); step2.classList.add('hidden'); step3.classList.add('hidden'); step4.classList.add('hidden'); sendStatus.textContent=''; }
-startSendBtn.onclick = ()=>{ sendWizard.classList.remove('hidden'); receiveSection.classList.add('hidden'); sendStatus.textContent=''; }
+// ---------------- Send Wizard ----------------
+el('cancel1').onclick=()=>{ sendWizard.classList.add('hidden'); step1.classList.remove('hidden'); step2.classList.add('hidden'); step3.classList.add('hidden'); step4.classList.add('hidden'); sendStatus.textContent=''; }
+startSendBtn.onclick=()=>{ sendWizard.classList.remove('hidden'); receiveSection.classList.add('hidden'); sendStatus.textContent=''; }
+el('next1').onclick=()=>{ if(!wizardToContact.value.trim()){ sendStatus.textContent='Geli recipient'; return;} step1.classList.add('hidden'); step2.classList.remove('hidden'); sendStatus.textContent=''; }
+el('prev2').onclick=()=>{ step2.classList.add('hidden'); step1.classList.remove('hidden'); }
+el('next2').onclick=()=>{ if(!wizardAmount.value||Number(wizardAmount.value)<=0){ sendStatus.textContent='Geli amount sax ah'; return;} step2.classList.add('hidden'); step3.classList.remove('hidden'); sendStatus.textContent=''; }
+el('prev3').onclick=()=>{ step3.classList.add('hidden'); step2.classList.remove('hidden'); }
+el('next3').onclick=()=>{ step3.classList.add('hidden'); step4.classList.remove('hidden'); confirmTo.textContent=wizardToContact.value.trim(); confirmAmount.textContent=wizardAmount.value; confirmMemo.textContent=wizardMemo.value||"-"; }
 
-el('next1').onclick = ()=>{ if(!wizardToContact.value.trim()){ sendStatus.textContent='Geli recipient'; return;} step1.classList.add('hidden'); step2.classList.remove('hidden'); sendStatus.textContent=''; }
-el('prev2').onclick = ()=>{ step2.classList.add('hidden'); step1.classList.remove('hidden'); }
-el('next2').onclick = ()=>{ if(!wizardAmount.value || Number(wizardAmount.value)<=0){ sendStatus.textContent='Geli amount sax ah'; return;} step2.classList.add('hidden'); step3.classList.remove('hidden'); sendStatus.textContent=''; }
-el('prev3').onclick = ()=>{ step3.classList.add('hidden'); step2.classList.remove('hidden'); }
-el('next3').onclick = ()=>{ step3.classList.add('hidden'); step4.classList.remove('hidden'); confirmTo.textContent = wizardToContact.value.trim(); confirmAmount.textContent = wizardAmount.value; confirmMemo.textContent = wizardMemo.value || "-"; }
-el('prev4').onclick = ()=>{ step4.classList.add('hidden'); step3.classList.remove('hidden'); }
-
-// ---------------- Final send -> create transaction & update balances & create block ----------------
-sendWizardBtn.onclick = async () => {
-  sendStatus.textContent = '';
-  try{
-    if(!session || !session.contact){ sendStatus.textContent='Fadlan gasho marka hore'; return; }
-    const sender = await fetchUserById(session.id);
-    if(!sender){ sendStatus.textContent='Sender not found'; return; }
-
-    const recipientContact = wizardToContact.value.trim();
-    const amt = Number(wizardAmount.value);
-    const memoVal = wizardMemo.value || '';
-
-    if(sender.balance < amt){ sendStatus.textContent = 'Balance ma filna'; return; }
-
-    // ensure recipient exists (create placeholder user if not)
-    let recipient = await getUserByContact(recipientContact);
+// ---------------- FINAL SEND ----------------
+sendWizardBtn.onclick=async()=>{
+  sendStatus.textContent=''; try{
+    if(!session||!session.contact){ sendStatus.textContent='Fadlan gasho marka hore'; return; }
+    const sender=await fetchUserById(session.id); if(!sender){ sendStatus.textContent='Sender not found'; return; }
+    const recipientContact=wizardToContact.value.trim(), amt=Number(wizardAmount.value), memoVal=wizardMemo.value||'';
+    if(sender.balance<amt){ sendStatus.textContent='Balance ma filna'; return; }
+    let recipient=await getUserByContact(recipientContact);
     if(!recipient){
-      // create minimal recipient (no password) - in real life you may require signups
-      const { data: rdata, error: rerr } = await supabase.from('users').insert([{
-        name: 'Unknown',
-        contact: recipientContact,
-        password: 'tmp', // should be improved
-        address: generateAddress(),
-        balance: 0,
-        created_at: nowTs()
-      }]).select().single();
-      if(rerr) throw rerr;
-      recipient = rdata;
+      const { data: rdata } = await supabase.from('users').insert([{ name:'Unknown', contact:recipientContact, password:'tmp', address:generateAddress(), balance:0, created_at: nowTs() }]).select().single();
+      recipient=rdata;
     }
-
-    // perform balance updates in a transaction-like manner:
-    // 1) create tx row
-    const txHash = '0x'+uid(12);
-    const { data: tx, error: txErr } = await supabase.from('transactions').insert([{
-      tx_hash: txHash,
-      from_user: sender.id,
-      to_user: recipient.id,
-      amount: amt,
-      memo: memoVal,
-      created_at: nowTs()
-    }]).select().single();
-    if(txErr) throw txErr;
-
-    // 2) update balances
-    const { error: u1err } = await supabase.from('users').update({ balance: sender.balance - amt }).eq('id', sender.id);
-    if(u1err) throw u1err;
-    const { error: u2err } = await supabase.from('users').update({ balance: (recipient.balance || 0) + amt }).eq('id', recipient.id);
-    if(u2err) throw u2err;
-
-    // 3) create a block that contains this tx (simple auto-block)
-    // find last block index
-    const { data: lastBlock } = await supabase.from('blocks').select('*').order('index', { ascending: false }).limit(1).maybeSingle();
-    const newIndex = lastBlock ? (lastBlock.index + 1) : 0;
-    const prevHash = lastBlock ? lastBlock.hash : '0x0';
-    const newHash = '0x' + uid(20);
-    const txsArr = [tx.tx_hash];
-
-    const { error: bErr } = await supabase.from('blocks').insert([{
-      index: newIndex,
-      prev_hash: prevHash,
-      hash: newHash,
-      created_at: nowTs(),
-      txs: JSON.stringify(txsArr)
-    }]);
-    if(bErr) throw bErr;
-
-    // update UI
-    const updatedSender = await fetchUserById(sender.id);
-    meBal.textContent = String(updatedSender.balance || 0);
-    sendStatus.textContent = 'Transfer OK → ' + txHash;
-
-    // reset wizard & refresh explorer
-    sendWizard.classList.add('hidden');
-    step1.classList.remove('hidden'); step2.classList.add('hidden'); step3.classList.add('hidden'); step4.classList.add('hidden');
-    wizardToContact.value=''; wizardAmount.value=''; wizardMemo.value='';
+    const txHash='0x'+uid(12);
+    const { data: tx } = await supabase.from('transactions').insert([{ tx_hash:txHash, from_user:sender.id, to_user:recipient.id, amount:amt, memo:memoVal, created_at: nowTs() }]).select().single();
+    await supabase.from('users').update({ balance: sender.balance-amt }).eq('id', sender.id);
+    await supabase.from('users').update({ balance: (recipient.balance||0)+amt }).eq('id', recipient.id);
+    const { data: lastBlock } = await supabase.from('blocks').select('*').order('index',{ascending:false}).limit(1).maybeSingle();
+    const newIndex=lastBlock?lastBlock.index+1:0; const prevHash=lastBlock?lastBlock.hash:'0x0'; const newHash='0x'+uid(20); const txsArr=[tx.tx_hash];
+    await supabase.from('blocks').insert([{ index:newIndex, prev_hash:prevHash, hash:newHash, created_at: nowTs(), txs: JSON.stringify(txsArr) }]);
+    const updatedSender=await fetchUserById(sender.id); meBal.textContent=String(updatedSender.balance||0);
+    sendStatus.textContent='Transfer OK → '+txHash;
+    sendWizard.classList.add('hidden'); step1.classList.remove('hidden'); step2.classList.add('hidden'); step3.classList.add('hidden'); step4.classList.add('hidden'); wizardToContact.value=''; wizardAmount.value=''; wizardMemo.value='';
     renderBlocks();
-
-  }catch(err){
-    console.error(err);
-    sendStatus.textContent = 'Error: ' + (err.message || JSON.stringify(err));
-  }
-}
-
-// ---------------- Receive handlers ----------------
-receiveBtn.onclick = async () => {
-  sendWizard.classList.add('hidden'); receiveSection.classList.toggle('hidden');
-  if(!session || !session.contact){ receiveStatus.textContent = 'Login marka hore'; return; }
-  const user = await fetchUserById(session.id);
-  receiveAddr.textContent = user.address;
-  receiveStatus.textContent = '';
-}
-copyAddrBtn.onclick = async ()=>{
-  try{
-    await navigator.clipboard.writeText(receiveAddr.textContent);
-    receiveStatus.textContent = 'Address la copy gareeyay!';
-  }catch(e){
-    receiveStatus.textContent = 'Copy failed';
-  }
-}
-el('closeReceive').onclick = ()=> receiveSection.classList.add('hidden');
-
-// ---------------- Explorer & Blocks rendering ----------------
-createBlockBtn.onclick = ()=>{ blocksList.scrollIntoView({behavior:"smooth", block:"center"}); renderBlocks(); }
-
-async function renderBlocks(){
-  blocksList.innerHTML = '';
-  try{
-    const { data: blocks } = await supabase.from('blocks').select('*').order('index', { ascending: false });
-    if(!blocks || !blocks.length){ blocksList.textContent = 'No blocks yet'; return; }
-
-    for(const b of blocks){
-      const div = document.createElement('div'); div.className = 'block';
-      div.innerHTML = `<strong>Block #${b.index}</strong><br>Prev: <code>${b.prev_hash}</code><br>Hash: <code>${b.hash}</code><br>Txs: ${ (b.txs ? JSON.parse(b.txs).length : 0) }<br>Time: ${b.created_at || b.ts || ''}`;
-      // show tx details
-      const txsHashes = b.txs ? JSON.parse(b.txs) : [];
-      for(const h of txsHashes){
-        const { data: tx } = await supabase.from('transactions').select('*').eq('tx_hash', h).maybeSingle();
-        const tdiv = document.createElement('div'); tdiv.className = 'txItem';
-        if(tx){
-          // fetch user contacts for display
-          const fromU = tx.from_user ? (await supabase.from('users').select('contact').eq('id', tx.from_user).maybeSingle()).data : null;
-          const toU = tx.to_user ? (await supabase.from('users').select('contact').eq('id', tx.to_user).maybeSingle()).data : null;
-          tdiv.innerHTML = `<b>${tx.tx_hash}</b><br><b>From:</b> ${fromU?.contact || tx.from_addr || '-'}<br><b>To:</b> ${toU?.contact || tx.to_addr || '-'}<br><b>Amount:</b> ${tx.amount}<br><b>Memo:</b> ${tx.memo||"-"}<br><small>${tx.created_at}</small>`;
-        } else {
-          tdiv.textContent = `[${h}] (tx not found)`;
-        }
-        div.appendChild(tdiv);
-      }
-      blocksList.appendChild(div);
-    }
-  }catch(err){
-    console.error(err);
-    blocksList.textContent = 'Error loading blocks: ' + (err.message || JSON.stringify(err));
-  }
-}
-
-// ---------------- Utility: render user balances if logged in ----------------
-async function refreshCurrentUser(){
-  if(!session || !session.id) return;
-  const u = await fetchUserById(session.id);
-  if(u){ meBal.textContent = String(u.balance || 0); meAddr.textContent = u.address; }
-}
-
-// ---------------- Logout ----------------
-logoutBtn.onclick = ()=> {
-  session = null;
-  walletSection.classList.add('hidden');
-  loginSection.classList.remove('hidden');
-}
-
-// ---------------- Init: try to fetch blocks on load ----------------
-(async ()=>{ await renderBlocks(); })();
-</script>
-</body>
-</html>
+    }catch(err){  
+    console.error(err);  
+    sendStatus.textContent = 'Error: ' + (err.message || JSON.stringify(err));  
+  }  
+}  
+  
+// ---------------- Receive handlers ----------------  
+receiveBtn.onclick = async () => {  
+  sendWizard.classList.add('hidden'); receiveSection.classList.toggle('hidden');  
+  if(!session || !session.contact){ receiveStatus.textContent = 'Login marka hore'; return; }  
+  const user = await fetchUserById(session.id);  
+  receiveAddr.textContent = user.address;  
+  receiveStatus.textContent = '';  
+}  
+copyAddrBtn.onclick = async ()=>{  
+  try{  
+    await navigator.clipboard.writeText(receiveAddr.textContent);  
+    receiveStatus.textContent = 'Address la copy gareeyay!';  
+  }catch(e){  
+    receiveStatus.textContent = 'Copy failed';  
+  }  
+}  
+el('closeReceive').onclick = ()=> receiveSection.classList.add('hidden');  
+  
+// ---------------- Explorer & Blocks rendering ----------------  
+createBlockBtn.onclick = ()=>{ blocksList.scrollIntoView({behavior:"smooth", block:"center"}); renderBlocks(); }  
+  
+async function renderBlocks(){  
+  blocksList.innerHTML = '';  
+  try{  
+    const { data: blocks } = await supabase.from('blocks').select('*').order('index', { ascending: false });  
+    if(!blocks || !blocks.length){ blocksList.textContent = 'No blocks yet'; return; }  
+  
+    for(const b of blocks){  
+      const div = document.createElement('div'); div.className = 'block';  
+      div.innerHTML = `<strong>Block #${b.index}</strong><br>Prev: <code>${b.prev_hash}</code><br>Hash: <code>${b.hash}</code><br>Txs: ${ (b.txs ? JSON.parse(b.txs).length : 0) }<br>Time: ${b.created_at || b.ts || ''}`;  
+      // show tx details  
+      const txsHashes = b.txs ? JSON.parse(b.txs) : [];  
+      for(const h of txsHashes){  
+        const { data: tx } = await supabase.from('transactions').select('*').eq('tx_hash', h).maybeSingle();  
+        const tdiv = document.createElement('div'); tdiv.className = 'txItem';  
+        if(tx){  
+          // fetch user contacts for display  
+          const fromU = tx.from_user ? (await supabase.from('users').select('contact').eq('id', tx.from_user).maybeSingle()).data : null;  
+          const toU = tx.to_user ? (await supabase.from('users').select('contact').eq('id', tx.to_user).maybeSingle()).data : null;  
+          tdiv.innerHTML = `<b>${tx.tx_hash}</b><br><b>From:</b> ${fromU?.contact || tx.from_addr || '-'}<br><b>To:</b> ${toU?.contact || tx.to_addr || '-'}<br><b>Amount:</b> ${tx.amount}<br><b>Memo:</b> ${tx.memo||"-"}<br><small>${tx.created_at}</small>`;  
+        } else {  
+          tdiv.textContent = `[${h}] (tx not found)`;  
+        }  
+        div.appendChild(tdiv);  
+      }  
+      blocksList.appendChild(div);  
+    }  
+  }catch(err){  
+    console.error(err);  
+    blocksList.textContent = 'Error loading blocks: ' + (err.message || JSON.stringify(err));  
+  }  
+}  
+  
+// ---------------- Utility: render user balances if logged in ----------------  
+async function refreshCurrentUser(){  
+  if(!session || !session.id) return;  
+  const u = await fetchUserById(session.id);  
+  if(u){ meBal.textContent = String(u.balance || 0); meAddr.textContent = u.address; }  
+}  
+  
+// ---------------- Logout ----------------  
+logoutBtn.onclick = ()=> {  
+  session = null;  
+  walletSection.classList.add('hidden');  
+  loginSection.classList.remove('hidden');  
+}  
+  
+// ---------------- Init: try to fetch blocks on load ----------------  
+(async ()=>{ await renderBlocks(); })();  
+</script>  
+</body>  
+</html>  
