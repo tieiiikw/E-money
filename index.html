@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="so">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Laam Wallet - Real Firebase App</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}  
+.container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}  
+h1,h2{margin-top:0;}  
+input{display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;}  
+button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer;margin-top:6px;}  
+.hidden{display:none;}  
+.status{margin-top:8px;color:#444;font-size:14px;}  
+code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;}  
+#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px;max-height:300px;overflow-y:auto;}  
+.block{padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;overflow-wrap:anywhere;}  
+.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;overflow-wrap:anywhere;}  
+
+.step{margin-top:10px;}
+.loading{color:#2563eb;font-style:italic;}
+.error{color:#ef4444;}
+.success{color:#10b981;}
+
+/* Wizard styling */
+.wizard-step{padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;}
+.wizard-nav{display:flex;gap:8px;margin-top:12px;}
+.wizard-nav button{flex:1;}
+
+/* Auto-refresh indicator */
+.auto-refresh-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #10b981;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  opacity: 0.9;
+  z-index: 1000;
+}
+
+/* Balance animation */
+.balance-update {
+  animation: pulse 1s;
+}
+
+@keyframes pulse {
+  0% { background-color: transparent; }
+  50% { background-color: #d1fae5; }
+  100% { background-color: transparent; }
+}
+</style>
+</head>
+<body>
+<div id="autoRefreshIndicator" class="auto-refresh-indicator hidden">🔄 Auto-Refresh</div>
+
+<div class="container">
+  <h1>Laam Wallet</h1>
+
+  <!-- Step 1: Signup -->
+  <section id="signupSection">
+    <h2>Signup</h2>
+    <input id="nameInput" placeholder="Magacaaga" />
+    <input id="emailInput" type="email" placeholder="Email" />
+    <input id="passwordInput" type="password" placeholder="Password" />
+    <button id="signupBtn">Sameey Account</button>
+    <div class="status" id="signupStatus"></div>
+    <p>Haddii aad hore u leedahay account, <a href="#" id="gotoLogin">Login halkan</a></p>
+  </section>
+
+  <!-- Login -->
+  <section id="loginSection" class="hidden">
+    <h2>Login</h2>
+    <input id="loginEmail" type="email" placeholder="Email" />
+    <input id="loginPassword" type="password" placeholder="Password" />
+    <button id="loginBtn">Login</button>
+    <div class="status" id="loginStatus"></div>
+    <p>Haddii account la sameeyay la'aan, <a href="#" id="gotoSignup">Signup halkan</a></p>
+  </section>
+
+  <!-- Wallet -->
+  <section id="walletSection" class="hidden">
+    <h2>Wallet Dashboard</h2>
+    <div><b>User:</b> <span id="userName"></span></div>
+    <div><b>Address:</b> <code id="meAddr"></code></div>
+    <div><b>Balance:</b> <span id="meBal"></span> LAM</div>
+
+    <h3>Send Money</h3>
+    <div style="display:flex; gap:10px; margin-bottom:12px;">
+      <button id="startSendBtn" style="flex:1;">Send Money</button>
+      <button id="receiveBtn" style="flex:1; background:#10b981;">Receive</button>
+    </div>
+
+    <!-- Send Wizard -->
+    <div id="sendWizard" class="hidden">
+      <!-- Step 1: Recipient -->
+      <div class="wizard-step" id="step1">
+        <h4>Step 1: Recipient</h4>
+        <input id="wizardToEmail" type="email" placeholder="Recipient Email" />
+        <div class="wizard-nav">
+          <button id="next1">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Amount -->
+      <div class="wizard-step hidden" id="step2">
+        <h4>Step 2: Amount</h4>
+        <input id="wizardAmount" type="number" placeholder="Amount" min="1" />
+        <div class="wizard-nav">
+          <button id="prev2">Prev</button>
+          <button id="next2">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Memo -->
+      <div class="wizard-step hidden" id="step3">
+        <h4>Step 3: Memo</h4>
+        <input id="wizardMemo" placeholder="Memo (optional)" />
+        <div class="wizard-nav">
+          <button id="prev3">Prev</button>
+          <button id="next3">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Confirm -->
+      <div class="wizard-step hidden" id="step4">
+        <h4>Step 4: Confirm</h4>
+        <p>Recipient: <span id="confirmTo"></span></p>
+        <p>Amount: <span id="confirmAmount"></span> LAM</p>
+        <p>Memo: <span id="confirmMemo"></span></p>
+        <div class="wizard-nav">
+          <button id="prev4">Prev</button>
+          <button id="sendWizardBtn">Send</button>
+        </div>
+      </div>
+      <div id="sendStatus" class="status"></div>
+    </div>
+
+    <!-- Receive Section -->
+    <div id="receiveSection" class="hidden" style="margin-top:12px; padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#f0fdf4;">
+      <p><b>Your Wallet Address:</b></p>
+      <code id="receiveAddr" style="word-break: break-all;"></code>
+      <button id="copyAddrBtn" style="margin-top:8px; background:#2563eb; color:#fff; border-radius:6px; padding:6px 12px;">Copy Address</button>
+      <div id="receiveStatus" class="status"></div>
+    </div>
+
+    <!-- Explorer Button -->
+    <div style="text-align:center; margin:12px 0;">
+      <button id="createBlockBtn">Explorer</button>
+    </div>
+    <div id="blocksList"></div>
+
+    <button id="logoutBtn" style="margin-top:10px;background:#ef4444;">Logout</button>
+  </section>
+</div>
+
+<script>
+// ---------------- FIREBASE CONFIG ----------------
+const firebaseConfig = {
+  apiKey: "AIzaSyAmvjHO-sNqhxcTmcJEzgvBKPpvfcTtwUw",
+  authDomain: "alifpay.firebaseapp.com",
+  projectId: "alifpay",
+  storageBucket: "alifpay.firebasestorage.app",
+  messagingSenderId: "56328944610",
+  appId: "1:56328944610:web:24b9a730206a48ba45d7bb",
+  measurementId: "G-0Z2YPKRE42"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ---------------- UTILS ----------------
+function uid(len=8){ return Math.random().toString(16).slice(2,2+len) }
+function nowTs(){ return new Date().toISOString() }
+function generateAddress() { return '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
+
+// ---------------- ELEMENTS ----------------
+const signupSection=document.getElementById('signupSection');
+const loginSection=document.getElementById('loginSection');
+const walletSection=document.getElementById('walletSection');
+const autoRefreshIndicator = document.getElementById('autoRefreshIndicator');
+
+const nameInput=document.getElementById('nameInput');
+const emailInput=document.getElementById('emailInput');
+const passwordInput=document.getElementById('passwordInput');
+const signupBtn=document.getElementById('signupBtn');
+const signupStatus=document.getElementById('signupStatus');
+
+const loginEmail=document.getElementById('loginEmail');
+const loginPassword=document.getElementById('loginPassword');
+const loginBtn=document.getElementById('loginBtn');
+const loginStatus=document.getElementById('loginStatus');
+
+const gotoLogin=document.getElementById('gotoLogin');
+const gotoSignup=document.getElementById('gotoSignup');
+
+const userName=document.getElementById('userName');
+const meAddr=document.getElementById('meAddr');
+const meBal=document.getElementById('meBal');
+
+const blocksList=document.getElementById('blocksList');
+const createBlockBtn=document.getElementById('createBlockBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+
+// Wizard elements
+const startSendBtn = document.getElementById('startSendBtn');
+const receiveBtn = document.getElementById('receiveBtn');
+const sendWizard = document.getElementById('sendWizard');
+const receiveSection = document.getElementById('receiveSection');
+
+const wizardToEmail = document.getElementById('wizardToEmail');
+const wizardAmount = document.getElementById('wizardAmount');
+const wizardMemo = document.getElementById('wizardMemo');
+const sendWizardBtn = document.getElementById('sendWizardBtn');
+
+const step1 = document.getElementById('step1');
+const step2 = document.getElementById('step2');
+const step3 = document.getElementById('step3');
+const step4 = document.getElementById('step4');
+
+const confirmTo = document.getElementById('confirmTo');
+const confirmAmount = document.getElementById('confirmAmount');
+const confirmMemo = document.getElementById('confirmMemo');
+const sendStatus = document.getElementById('sendStatus');
+
+const receiveAddr = document.getElementById('receiveAddr');
+const copyAddrBtn = document.getElementById('copyAddrBtn');
+const receiveStatus = document.getElementById('receiveStatus');
+
+let currentUser = null;
+let userData = null;
+let userListener = null;
+let blocksListener = null;
+let lastBalance = 0;
+
+// ---------------- NAV ----------------
+gotoLogin.onclick=(e)=>{e.preventDefault(); signupSection.classList.add('hidden'); loginSection.classList.remove('hidden');}
+gotoSignup.onclick=(e)=>{e.preventDefault(); loginSection.classList.add('hidden'); signupSection.classList.remove('hidden');}
+
+// ---------------- AUTH STATE OBSERVER ----------------
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUser = user;
+    await loadUserData();
+    setupRealTimeListeners();
+    loginSection.classList.add('hidden');
+    signupSection.classList.add('hidden');
+    walletSection.classList.remove('hidden');
+    autoRefreshIndicator.classList.remove('hidden');
+  } else {
+    currentUser = null;
+    userData = null;
+    // Clean up listeners
+    if (userListener) userListener();
+    if (blocksListener) blocksListener();
+    walletSection.classList.add('hidden');
+    loginSection.classList.remove('hidden');
+    autoRefreshIndicator.classList.add('hidden');
+  }
+});
+
+// ---------------- REAL-TIME LISTENERS ----------------
+function setupRealTimeListeners() {
+  if (!currentUser) return;
+  
+  // Set up real-time listener for user data (balance, etc.)
+  userListener = db.collection('users').doc(currentUser.uid)
+    .onSnapshot((doc) => {
+      if (doc.exists) {
+        const newData = doc.data();
+        userData = newData;
+        updateUserDisplay(newData);
+      }
+    }, (error) => {
+      console.error('Error in user listener:', error);
+    });
+  
+  // Set up real-time listener for blocks
+  blocksListener = db.collection('blocks')
+    .orderBy('index', 'desc')
+    .limit(10)
+    .onSnapshot((snapshot) => {
+      renderBlocks(snapshot);
+    }, (error) => {
+      console.error('Error in blocks listener:', error);
+    });
+}
+
+function updateUserDisplay(userData) {
+  userName.textContent = userData.name;
+  meAddr.textContent = userData.address;
+  
+  // Check if balance changed and animate if it did
+  if (lastBalance !== userData.balance) {
+    meBal.textContent = userData.balance;
+    meBal.classList.add('balance-update');
+    setTimeout(() => {
+      meBal.classList.remove('balance-update');
+    }, 1000);
+    lastBalance = userData.balance;
+  } else {
+    meBal.textContent = userData.balance;
+  }
+}
+
+// ---------------- SIGNUP ----------------
+signupBtn.onclick=async ()=>{
+  const name=nameInput.value.trim();
+  const email=emailInput.value.trim();
+  const password=passwordInput.value.trim();
+  
+  if(!name || !email || !password){
+    signupStatus.textContent='Geli dhammaan xogta';
+    signupStatus.className = 'status error';
+    return;
+  }
+  
+  signupStatus.textContent = 'Creating account...';
+  signupStatus.className = 'status loading';
+  
+  try {
+    // Create user in Firebase Auth
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    // Create user document in Firestore
+    const userDoc = {
+      name,
+      email,
+      address: generateAddress(),
+      balance: 1000,
+      createdAt: nowTs()
+    };
+    
+    await db.collection('users').doc(user.uid).set(userDoc);
+    
+    signupStatus.textContent = 'Account successfully created!';
+    signupStatus.className = 'status success';
+    
+    // Clear form
+    nameInput.value = '';
+    emailInput.value = '';
+    passwordInput.value = '';
+    
+  } catch (error) {
+    console.error('Signup error:', error);
+    signupStatus.textContent = `Error: ${error.message}`;
+    signupStatus.className = 'status error';
+  }
+}
+
+// ---------------- LOGIN ----------------
+loginBtn.onclick=async ()=>{
+  const email=loginEmail.value.trim();
+  const password=loginPassword.value.trim();
+  
+  if(!email || !password){
+    loginStatus.textContent='Geli xogta';
+    loginStatus.className = 'status error';
+    return;
+  }
+  
+  loginStatus.textContent = 'Logging in...';
+  loginStatus.className = 'status loading';
+  
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    loginStatus.textContent = 'Login successful!';
+    loginStatus.className = 'status success';
+    
+    // Clear form
+    loginEmail.value = '';
+    loginPassword.value = '';
+  } catch (error) {
+    console.error('Login error:', error);
+    loginStatus.textContent = `Error: ${error.message}`;
+    loginStatus.className = 'status error';
+  }
+}
+
+// ---------------- LOAD USER DATA ----------------
+async function loadUserData() {
+  if (!currentUser) return;
+  
+  try {
+    const userDoc = await db.collection('users').doc(currentUser.uid).get();
+    if (userDoc.exists) {
+      userData = userDoc.data();
+      updateUserDisplay(userData);
+    } else {
+      console.error('User document not found');
+      // Create user document if it doesn't exist
+      const userDoc = {
+        name: currentUser.displayName || currentUser.email.split('@')[0],
+        email: currentUser.email,
+        address: generateAddress(),
+        balance: 1000,
+        createdAt: nowTs()
+      };
+      
+      await db.collection('users').doc(currentUser.uid).set(userDoc);
+      userData = userDoc;
+      updateUserDisplay(userData);
+    }
+  } catch (error) {
+    console.error('Error loading user data:', error);
+  }
+}
+
+// ---------------- Send Money Button ----------------
+startSendBtn.onclick = () => {
+  sendWizard.classList.remove('hidden');
+  receiveSection.classList.add('hidden'); // hide receive if open
+};
+
+// Step navigation
+document.getElementById('next1').onclick = async () => {
+  const recipientEmail = wizardToEmail.value.trim();
+  if(!recipientEmail){
+    sendStatus.textContent="Geli recipient email";
+    sendStatus.className = 'status error';
+    return;
+  }
+  
+  // Check if recipient exists
+  try {
+    const usersSnapshot = await db.collection('users')
+      .where('email', '==', recipientEmail)
+      .limit(1)
+      .get();
+    
+    if (usersSnapshot.empty) {
+      sendStatus.textContent = "Ma jiro user ku leh emailkaan";
+      sendStatus.className = 'status error';
+      return;
+    }
+    
+    step1.classList.add('hidden');
+    step2.classList.remove('hidden');
+    sendStatus.textContent = '';
+  } catch (error) {
+    console.error('Error checking recipient:', error);
+    sendStatus.textContent = `Error: ${error.message}`;
+    sendStatus.className = 'status error';
+  }
+};
+
+document.getElementById('prev2').onclick = () => { step2.classList.add('hidden'); step1.classList.remove('hidden'); };
+document.getElementById('next2').onclick = () => {
+  if(!wizardAmount.value || Number(wizardAmount.value)<=0){
+    sendStatus.textContent="Geli amount sax ah";
+    sendStatus.className = 'status error';
+    return;
+  }
+  
+  if(Number(wizardAmount.value) > userData.balance){
+    sendStatus.textContent="Balance ma filna";
+    sendStatus.className = 'status error';
+    return;
+  }
+  
+  step2.classList.add('hidden');
+  step3.classList.remove('hidden');
+  sendStatus.textContent='';
+};
+
+document.getElementById('prev3').onclick = () => { step3.classList.add('hidden'); step2.classList.remove('hidden'); };
+document.getElementById('next3').onclick = () => {
+  step3.classList.add('hidden');
+  step4.classList.remove('hidden');
+  confirmTo.textContent = wizardToEmail.value.trim();
+  confirmAmount.textContent = wizardAmount.value;
+  confirmMemo.textContent = wizardMemo.value || "-";
+};
+
+document.getElementById('prev4').onclick = () => { step4.classList.add('hidden'); step3.classList.remove('hidden'); };
+
+// Final send
+sendWizardBtn.onclick = async () => {
+  sendStatus.textContent='Processing transaction...';
+  sendStatus.className = 'status loading';
+  
+  try {
+    const recipientEmail = wizardToEmail.value.trim();
+    const amt = Number(wizardAmount.value);
+    const memoVal = wizardMemo.value;
+    
+    // Get sender and recipient data
+    const senderRef = db.collection('users').doc(currentUser.uid);
+    const recipientsSnapshot = await db.collection('users')
+      .where('email', '==', recipientEmail)
+      .limit(1)
+      .get();
+    
+    if (recipientsSnapshot.empty) {
+      sendStatus.textContent = "Ma jiro user ku leh emailkaan";
+      sendStatus.className = 'status error';
+      return;
+    }
+    
+    const recipientDoc = recipientsSnapshot.docs[0];
+    const recipientRef = recipientDoc.ref;
+    const recipientData = recipientDoc.data();
+    
+    // Create transaction
+    const tx = {
+      txHash: '0x'+uid(12),
+      fromAddr: userData.address,
+      toAddr: recipientData.address,
+      fromUserId: currentUser.uid,
+      toUserId: recipientDoc.id,
+      amount: amt,
+      memo: memoVal,
+      ts: nowTs()
+    };
+    
+    // Use batch write for atomic transaction
+    const batch = db.batch();
+    
+    // Update sender balance
+    batch.update(senderRef, {
+      balance: firebase.firestore.FieldValue.increment(-amt)
+    });
+    
+    // Update recipient balance
+    batch.update(recipientRef, {
+      balance: firebase.firestore.FieldValue.increment(amt)
+    });
+    
+    // Add transaction to Firestore
+    const txRef = db.collection('transactions').doc();
+    batch.set(txRef, tx);
+    
+    // Commit the batch
+    await batch.commit();
+    
+    // Update local user data
+    userData.balance -= amt;
+    meBal.textContent = userData.balance;
+    
+    sendStatus.textContent = "Transfer OK → " + tx.txHash;
+    sendStatus.className = 'status success';
+    
+    // Reset wizard
+    sendWizard.classList.add('hidden');
+    step1.classList.remove('hidden');
+    step2.classList.add('hidden');
+    step3.classList.add('hidden');
+    step4.classList.add('hidden');
+    wizardToEmail.value='';
+    wizardAmount.value='';
+    wizardMemo.value='';
+    
+    // Create block with this transaction
+    await createBlock([tx]);
+    
+  } catch (error) {
+    console.error('Send money error:', error);
+    sendStatus.textContent = `Error: ${error.message}`;
+    sendStatus.className = 'status error';
+  }
+};
+
+// ---------------- Receive Button ----------------
+receiveBtn.onclick = () => {
+  sendWizard.classList.add('hidden'); // hide send wizard
+  receiveSection.classList.toggle('hidden');
+  receiveAddr.textContent = userData.address;
+};
+
+// ---------------- Copy Address ----------------
+copyAddrBtn.onclick = () => {
+  navigator.clipboard.writeText(receiveAddr.textContent)
+    .then(()=>{ 
+      receiveStatus.textContent="Address la copy gareeyay!";
+      receiveStatus.className = 'status success';
+    })
+    .catch(()=>{ 
+      receiveStatus.textContent="Copy failed";
+      receiveStatus.className = 'status error';
+    });
+};
+
+// ---------------- BLOCKCHAIN ----------------
+createBlockBtn.onclick=()=>{ blocksList.scrollIntoView({behavior:"smooth",block:"center"}); }
+
+async function createBlock(txs=[]){
+  try {
+    const blocksRef = db.collection('blocks');
+    const blocksSnapshot = await blocksRef.orderBy('index', 'desc').limit(1).get();
+    
+    let prevHash = '0x0';
+    let index = 0;
+    
+    if (!blocksSnapshot.empty) {
+      const lastBlock = blocksSnapshot.docs[0].data();
+      prevHash = lastBlock.hash;
+      index = lastBlock.index + 1;
+    }
+    
+    const block = { 
+      index, 
+      ts: nowTs(), 
+      prevHash, 
+      hash: '0x'+uid(20), 
+      txs 
+    };
+    
+    await blocksRef.add(block);
+    // No need to call renderBlocks here as the listener will handle it
+  } catch (error) {
+    console.error('Error creating block:', error);
+  }
+}
+
+function renderBlocks(snapshot){
+  try {
+    blocksList.innerHTML = '';
+    
+    if (snapshot.empty) {
+      blocksList.innerHTML = '<p>No blocks yet</p>';
+      return;
+    }
+    
+    snapshot.forEach(doc => {
+      const b = doc.data();
+      const d = document.createElement('div');
+      d.className = 'block';
+      d.innerHTML = `
+        <strong>Block #${b.index}</strong><br>
+        Prev: <code>${b.prevHash}</code><br>
+        Hash: <code>${b.hash}</code><br>
+        Txs: ${b.txs.length}<br>
+        Time: ${b.ts}
+      `;
+      
+      for(const t of b.txs){
+        const tx = document.createElement('div');
+        tx.className = 'txItem';
+        tx.innerHTML = `
+          <b>${t.txHash}</b><br>
+          <b>From:</b> ${t.fromAddr}<br>
+          <b>To:</b> ${t.toAddr}<br>
+          <b>Amount:</b> ${t.amount} LAM<br>
+          <b>Memo:</b> ${t.memo||"-"}<br>
+          <small>${t.ts}</small>
+        `;
+        d.appendChild(tx);
+      }
+      blocksList.appendChild(d);
+    });
+  } catch (error) {
+    console.error('Error rendering blocks:', error);
+  }
+}
+
+// ---------------- Logout ----------------
+logoutBtn.onclick=()=>{
+  auth.signOut();
+}
+
+// Initialize the app - create genesis block if needed
+async function initializeApp() {
+  try {
+    const blocksSnapshot = await db.collection('blocks').limit(1).get();
+    if (blocksSnapshot.empty) {
+      await createBlock([]);
+    }
+  } catch (error) {
+    console.error('Error initializing app:', error);
+  }
+}
+
+// Run initialization when page loads
+initializeApp();
+</script>
+</body>
+</html>
