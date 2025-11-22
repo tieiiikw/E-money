@@ -3,123 +3,129 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laam Wallet - Supabase</title>
+<title>Laam Wallet - Real Firebase App</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 <style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}
-.container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}
-h1,h2{margin-top:0;}
-input{display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;}
-button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer;margin-top:6px;}
-.hidden{display:none;}
-.status{margin-top:8px;color:#444;font-size:14px;}
-code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;}
-#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px;max-height:300px;overflow-y:auto;}
-.block{padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;overflow-wrap:anywhere;}
-.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;overflow-wrap:anywhere;}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;padding:18px;background:#f7f7fb;color:#222;}  
+.container{max-width:720px;margin:0 auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(20,20,60,0.06);}  
+h1,h2{margin-top:0;}  
+input{display:block;padding:10px;margin:8px 0;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;}  
+button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer;margin-top:6px;}  
+.hidden{display:none;}  
+.status{margin-top:8px;color:#444;font-size:14px;}  
+code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;}  
+#blocksList{margin-top:12px;border-top:1px dashed #eee;padding-top:10px;max-height:300px;overflow-y:auto;}  
+.block{padding:8px;border-radius:8px;background:#f8fafc;margin-bottom:8px;border:1px solid #eef2ff;overflow-wrap:anywhere;}  
+.txItem{font-size:13px;margin-top:6px;background:#fff;padding:6px;border-radius:6px;border:1px solid #e5e7eb;overflow-wrap:anywhere;}  
+
 .step{margin-top:10px;}
-.row{display:flex; gap:8px}
-.col{flex:1}
-.center{text-align:center}
-.small{font-size:13px;color:#666}
+.loading{color:#2563eb;font-style:italic;}
+.error{color:#ef4444;}
+.success{color:#10b981;}
+
+/* Wizard styling */
+.wizard-step{padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;}
+.wizard-nav{display:flex;gap:8px;margin-top:12px;}
+.wizard-nav button{flex:1;}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Laam Wallet (Supabase)</h1>
+  <h1>Laam Wallet</h1>
 
-  <!-- Signup -->
+  <!-- Step 1: Signup -->
   <section id="signupSection">
     <h2>Signup</h2>
     <input id="nameInput" placeholder="Magacaaga" />
-    <input id="contactInput" placeholder="Email ama Phone" />
+    <input id="emailInput" type="email" placeholder="Email" />
     <input id="passwordInput" type="password" placeholder="Password" />
-    <button id="signupBtn">Codso PIN / OTP</button>
+    <button id="signupBtn">Sameey Account</button>
     <div class="status" id="signupStatus"></div>
-    <p class="small">Haddii aad hore u leedahay account, <a href="#" id="gotoLogin">Login halkan</a></p>
+    <p>Haddii aad hore u leedahay account, <a href="#" id="gotoLogin">Login halkan</a></p>
   </section>
 
   <!-- Login -->
   <section id="loginSection" class="hidden">
     <h2>Login</h2>
-    <input id="loginContact" placeholder="Email ama Phone" />
+    <input id="loginEmail" type="email" placeholder="Email" />
     <input id="loginPassword" type="password" placeholder="Password" />
-    <button id="loginBtn">Login (Dhexdiis PIN ayaa la diraa)</button>
+    <button id="loginBtn">Login</button>
     <div class="status" id="loginStatus"></div>
-    <p class="small">Haddii account la sameeyay la'aan, <a href="#" id="gotoSignup">Signup halkan</a></p>
-  </section>
-
-  <!-- PIN Verification -->
-  <section id="pinSection" class="hidden">
-    <h2>Geli PIN la diray</h2>
-    <input id="pinInput" placeholder="PIN (6 digits)" />
-    <button id="verifyPinBtn">Verify PIN</button>
-    <div class="status" id="pinStatus"></div>
+    <p>Haddii account la sameeyay la'aan, <a href="#" id="gotoSignup">Signup halkan</a></p>
   </section>
 
   <!-- Wallet -->
   <section id="walletSection" class="hidden">
     <h2>Wallet Dashboard</h2>
+    <div><b>User:</b> <span id="userName"></span></div>
     <div><b>Address:</b> <code id="meAddr"></code></div>
     <div><b>Balance:</b> <span id="meBal"></span></div>
 
     <h3>Send Money</h3>
-    <div class="row" style="margin-bottom:12px;">
-      <button id="startSendBtn" class="col">Send Money</button>
-      <button id="receiveBtn" class="col" style="background:#10b981;">Receive</button>
+    <div style="display:flex; gap:10px; margin-bottom:12px;">
+      <button id="startSendBtn" style="flex:1;">Send Money</button>
+      <button id="receiveBtn" style="flex:1; background:#10b981;">Receive</button>
     </div>
 
     <!-- Send Wizard -->
-    <div id="sendWizard" class="hidden" style="margin-top:12px;">
-      <div id="step1">
-        <input id="wizardToContact" placeholder="Recipient Phone or Email" />
-        <div class="row">
-          <button id="cancel1" class="col" style="background:#6b7280">Cancel</button>
-          <button id="next1" class="col">Next</button>
+    <div id="sendWizard" class="hidden">
+      <!-- Step 1: Recipient -->
+      <div class="wizard-step" id="step1">
+        <h4>Step 1: Recipient</h4>
+        <input id="wizardToEmail" type="email" placeholder="Recipient Email" />
+        <div class="wizard-nav">
+          <button id="next1">Next</button>
         </div>
       </div>
 
-      <div id="step2" class="hidden">
-        <input id="wizardAmount" type="number" placeholder="Amount" />
-        <div class="row">
-          <button id="prev2" class="col" style="background:#6b7280">Prev</button>
-          <button id="next2" class="col">Next</button>
+      <!-- Step 2: Amount -->
+      <div class="wizard-step hidden" id="step2">
+        <h4>Step 2: Amount</h4>
+        <input id="wizardAmount" type="number" placeholder="Amount" min="1" />
+        <div class="wizard-nav">
+          <button id="prev2">Prev</button>
+          <button id="next2">Next</button>
         </div>
       </div>
 
-      <div id="step3" class="hidden">
+      <!-- Step 3: Memo -->
+      <div class="wizard-step hidden" id="step3">
+        <h4>Step 3: Memo</h4>
         <input id="wizardMemo" placeholder="Memo (optional)" />
-        <div class="row">
-          <button id="prev3" class="col" style="background:#6b7280">Prev</button>
-          <button id="next3" class="col">Next</button>
+        <div class="wizard-nav">
+          <button id="prev3">Prev</button>
+          <button id="next3">Next</button>
         </div>
       </div>
 
-      <div id="step4" class="hidden">
+      <!-- Step 4: Confirm -->
+      <div class="wizard-step hidden" id="step4">
+        <h4>Step 4: Confirm</h4>
         <p>Recipient: <span id="confirmTo"></span></p>
         <p>Amount: <span id="confirmAmount"></span></p>
         <p>Memo: <span id="confirmMemo"></span></p>
-        <div class="row">
-          <button id="prev4" class="col" style="background:#6b7280">Prev</button>
-          <button id="sendWizardBtn" class="col">Send</button>
+        <div class="wizard-nav">
+          <button id="prev4">Prev</button>
+          <button id="sendWizardBtn">Send</button>
         </div>
       </div>
       <div id="sendStatus" class="status"></div>
     </div>
 
-    <!-- Receive -->
+    <!-- Receive Section -->
     <div id="receiveSection" class="hidden" style="margin-top:12px; padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#f0fdf4;">
       <p><b>Your Wallet Address:</b></p>
       <code id="receiveAddr" style="word-break: break-all;"></code>
-      <div class="row" style="margin-top:8px;">
-        <button id="copyAddrBtn" style="flex:1">Copy Address</button>
-        <button id="closeReceive" style="flex:1;background:#6b7280">Close</button>
-      </div>
+      <button id="copyAddrBtn" style="margin-top:8px; background:#2563eb; color:#fff; border-radius:6px; padding:6px 12px;">Copy Address</button>
       <div id="receiveStatus" class="status"></div>
     </div>
 
-    <!-- Explorer -->
+    <!-- Explorer Button -->
     <div style="text-align:center; margin:12px 0;">
-      <button id="createBlockBtn">Explorer (Scroll to center)</button>
+      <button id="createBlockBtn">Explorer</button>
     </div>
     <div id="blocksList"></div>
 
@@ -127,197 +133,455 @@ code{background:#f3f4f6;padding:4px 6px;border-radius:6px;word-break: break-all;
   </section>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ---------------- CONFIG ----------------
-const SUPA_URL = "https://spsmzrkfqvtvenmleygm.supabase.co";
-const SUPA_KEY = "YOUR_ANON_KEY_HERE"; // replace with your Supabase anon key
-const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
+// ---------------- FIREBASE CONFIG ----------------
+const firebaseConfig = {
+  apiKey: "AIzaSyAmvjHO-sNqhxcTmcJEzgvBKPpvfcTtwUw",
+  authDomain: "alifpay.firebaseapp.com",
+  projectId: "alifpay",
+  storageBucket: "alifpay.firebasestorage.app",
+  messagingSenderId: "56328944610",
+  appId: "1:56328944610:web:24b9a730206a48ba45d7bb",
+  measurementId: "G-0Z2YPKRE42"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 // ---------------- UTILS ----------------
 function uid(len=8){ return Math.random().toString(16).slice(2,2+len) }
 function nowTs(){ return new Date().toISOString() }
-function generateAddress(){ return '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
-function el(id){ return document.getElementById(id) }
+function generateAddress() { return '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
 
 // ---------------- ELEMENTS ----------------
-const signupSection = el('signupSection'), loginSection = el('loginSection'), pinSection = el('pinSection'), walletSection = el('walletSection');
-const nameInput = el('nameInput'), contactInput = el('contactInput'), passwordInput = el('passwordInput'), signupBtn = el('signupBtn'), signupStatus = el('signupStatus');
-const loginContact = el('loginContact'), loginPassword = el('loginPassword'), loginBtn = el('loginBtn'), loginStatus = el('loginStatus');
-const gotoLogin = el('gotoLogin'), gotoSignup = el('gotoSignup');
-const pinInput = el('pinInput'), verifyPinBtn = el('verifyPinBtn'), pinStatus = el('pinStatus');
-const meAddr = el('meAddr'), meBal = el('meBal');
-const startSendBtn = el('startSendBtn'), receiveBtn = el('receiveBtn'), sendWizard = el('sendWizard'), receiveSection = el('receiveSection');
-const wizardToContact = el('wizardToContact'), wizardAmount = el('wizardAmount'), wizardMemo = el('wizardMemo'), sendWizardBtn = el('sendWizardBtn');
-const step1 = el('step1'), step2 = el('step2'), step3 = el('step3'), step4 = el('step4');
-const confirmTo = el('confirmTo'), confirmAmount = el('confirmAmount'), confirmMemo = el('confirmMemo');
-const sendStatus = el('sendStatus');
-const receiveAddr = el('receiveAddr'), copyAddrBtn = el('copyAddrBtn'), receiveStatus = el('receiveStatus');
-const createBlockBtn = el('createBlockBtn'), blocksList = el('blocksList'), logoutBtn = el('logoutBtn');
+const signupSection=document.getElementById('signupSection');
+const loginSection=document.getElementById('loginSection');
+const walletSection=document.getElementById('walletSection');
 
-let session = null;
-let otpLocalStore = {};
+const nameInput=document.getElementById('nameInput');
+const emailInput=document.getElementById('emailInput');
+const passwordInput=document.getElementById('passwordInput');
+const signupBtn=document.getElementById('signupBtn');
+const signupStatus=document.getElementById('signupStatus');
+
+const loginEmail=document.getElementById('loginEmail');
+const loginPassword=document.getElementById('loginPassword');
+const loginBtn=document.getElementById('loginBtn');
+const loginStatus=document.getElementById('loginStatus');
+
+const gotoLogin=document.getElementById('gotoLogin');
+const gotoSignup=document.getElementById('gotoSignup');
+
+const userName=document.getElementById('userName');
+const meAddr=document.getElementById('meAddr');
+const meBal=document.getElementById('meBal');
+
+const blocksList=document.getElementById('blocksList');
+const createBlockBtn=document.getElementById('createBlockBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+
+// Wizard elements
+const startSendBtn = document.getElementById('startSendBtn');
+const receiveBtn = document.getElementById('receiveBtn');
+const sendWizard = document.getElementById('sendWizard');
+const receiveSection = document.getElementById('receiveSection');
+
+const wizardToEmail = document.getElementById('wizardToEmail');
+const wizardAmount = document.getElementById('wizardAmount');
+const wizardMemo = document.getElementById('wizardMemo');
+const sendWizardBtn = document.getElementById('sendWizardBtn');
+
+const step1 = document.getElementById('step1');
+const step2 = document.getElementById('step2');
+const step3 = document.getElementById('step3');
+const step4 = document.getElementById('step4');
+
+const confirmTo = document.getElementById('confirmTo');
+const confirmAmount = document.getElementById('confirmAmount');
+const confirmMemo = document.getElementById('confirmMemo');
+const sendStatus = document.getElementById('sendStatus');
+
+const receiveAddr = document.getElementById('receiveAddr');
+const copyAddrBtn = document.getElementById('copyAddrBtn');
+const receiveStatus = document.getElementById('receiveStatus');
+
+let currentUser = null;
+let userData = null;
 
 // ---------------- NAV ----------------
-gotoLogin.onclick = (e)=>{ e.preventDefault(); signupSection.classList.add('hidden'); loginSection.classList.remove('hidden'); }
-gotoSignup.onclick = (e)=>{ e.preventDefault(); loginSection.classList.add('hidden'); signupSection.classList.remove('hidden'); }
+gotoLogin.onclick=(e)=>{e.preventDefault(); signupSection.classList.add('hidden'); loginSection.classList.remove('hidden');}
+gotoSignup.onclick=(e)=>{e.preventDefault(); loginSection.classList.add('hidden'); signupSection.classList.remove('hidden');}
 
-// ---------------- HELPERS ----------------
-async function getUserByContact(contact){ const { data, error } = await supabase.from('users').select('*').eq('contact', contact).maybeSingle(); if(error) throw error; return data; }
-async function createUser({ name, contact, password }){ const address = generateAddress(); const { data, error } = await supabase.from('users').insert([{ name, contact, password, address, balance:1000, created_at: nowTs() }]).select().single(); if(error) throw error; return data; }
-async function updateUserOtp(contact, otp, expiryIso){ const { data, error } = await supabase.from('users').update({ otp, otp_expiry: expiryIso }).eq('contact', contact).select().single(); if(error) throw error; return data; }
-async function fetchUserById(id){ const { data, error } = await supabase.from('users').select('*').eq('id', id).single(); if(error) throw error; return data; }
+// ---------------- AUTH STATE OBSERVER ----------------
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUser = user;
+    await loadUserData();
+    loginSection.classList.add('hidden');
+    signupSection.classList.add('hidden');
+    walletSection.classList.remove('hidden');
+  } else {
+    currentUser = null;
+    userData = null;
+    walletSection.classList.add('hidden');
+    loginSection.classList.remove('hidden');
+  }
+});
 
 // ---------------- SIGNUP ----------------
-signupBtn.onclick = async ()=>{
-  signupStatus.textContent=''; const name=nameInput.value.trim(), contact=contactInput.value.trim(), password=passwordInput.value.trim();
-  if(!name||!contact||!password){ signupStatus.textContent='Geli dhammaan xogta'; return; }
-  try{
-    let user = await getUserByContact(contact);
-    if(!user){ user = await createUser({ name, contact, password }); }
-    const otp = String(Math.floor(100000+Math.random()*900000));
-    const otpExpiry = new Date(Date.now()+10*60*1000).toISOString();
-    await updateUserOtp(contact, otp, otpExpiry); otpLocalStore[contact]=otp; console.log('MOCK OTP for', contact, otp);
-    signupStatus.textContent='OTP waa la diray (demo)';
-    session={id:user.id, contact:user.contact}; signupSection.classList.add('hidden'); pinSection.classList.remove('hidden');
-  }catch(err){ console.error(err); signupStatus.textContent='Error: '+err.message; }
+signupBtn.onclick=async ()=>{
+  const name=nameInput.value.trim();
+  const email=emailInput.value.trim();
+  const password=passwordInput.value.trim();
+  
+  if(!name || !email || !password){
+    signupStatus.textContent='Geli dhammaan xogta';
+    signupStatus.className = 'status error';
+    return;
+  }
+  
+  signupStatus.textContent = 'Creating account...';
+  signupStatus.className = 'status loading';
+  
+  try {
+    // Create user in Firebase Auth
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    // Create user document in Firestore
+    const userDoc = {
+      name,
+      email,
+      address: generateAddress(),
+      balance: 1000,
+      createdAt: nowTs()
+    };
+    
+    await db.collection('users').doc(user.uid).set(userDoc);
+    
+    signupStatus.textContent = 'Account successfully created!';
+    signupStatus.className = 'status success';
+    
+    // Clear form
+    nameInput.value = '';
+    emailInput.value = '';
+    passwordInput.value = '';
+    
+  } catch (error) {
+    console.error('Signup error:', error);
+    signupStatus.textContent = `Error: ${error.message}`;
+    signupStatus.className = 'status error';
+  }
 }
 
 // ---------------- LOGIN ----------------
-loginBtn.onclick=async()=>{
-  loginStatus.textContent=''; const contact=loginContact.value.trim(), password=loginPassword.value.trim();
-  if(!contact||!password){ loginStatus.textContent='Geli xogta'; return; }
-  try{
-    const user = await getUserByContact(contact); if(!user||user.password!==password){ loginStatus.textContent='Contact ama Password khalad'; return; }
-    const otp=String(Math.floor(100000+Math.random()*900000)); const otpExpiry=new Date(Date.now()+10*60*1000).toISOString();
-    await updateUserOtp(contact, otp, otpExpiry); otpLocalStore[contact]=otp; console.log('MOCK OTP for login', contact, otp);
-    session={id:user.id, contact:user.contact}; loginSection.classList.add('hidden'); pinSection.classList.remove('hidden'); loginStatus.textContent='OTP waa la diray (demo)';
-  }catch(err){ console.error(err); loginStatus.textContent='Error: '+err.message; }
+loginBtn.onclick=async ()=>{
+  const email=loginEmail.value.trim();
+  const password=loginPassword.value.trim();
+  
+  if(!email || !password){
+    loginStatus.textContent='Geli xogta';
+    loginStatus.className = 'status error';
+    return;
+  }
+  
+  loginStatus.textContent = 'Logging in...';
+  loginStatus.className = 'status loading';
+  
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    loginStatus.textContent = 'Login successful!';
+    loginStatus.className = 'status success';
+    
+    // Clear form
+    loginEmail.value = '';
+    loginPassword.value = '';
+  } catch (error) {
+    console.error('Login error:', error);
+    loginStatus.textContent = `Error: ${error.message}`;
+    loginStatus.className = 'status error';
+  }
 }
 
-// ---------------- PIN VERIFY ----------------
-verifyPinBtn.onclick=async()=>{
-  pinStatus.textContent=''; const pin=pinInput.value.trim(), contact=session?.contact;
-  if(!contact){ pinStatus.textContent='No session'; return; } if(!pin){ pinStatus.textContent='Geli PIN'; return; }
-  try{
-    const user=await getUserByContact(contact); if(!user||!user.otp){ pinStatus.textContent='PIN lama dirin ama user ma jiro'; return; }
-    const now=new Date(), expiry=user.otp_expiry?new Date(user.otp_expiry):null;
-    if(user.otp!==pin){ pinStatus.textContent='PIN khalad ah'; return; }
-    if(expiry && expiry<now){ pinStatus.textContent='PIN waa dhacay'; return; }
-    await supabase.from('users').update({ otp:null, otp_expiry:null }).eq('contact', contact);
-    const fresh=await getUserByContact(contact); session={id:fresh.id, contact:fresh.contact, name:fresh.name, address:fresh.address};
-    pinSection.classList.add('hidden'); walletSection.classList.remove('hidden'); meAddr.textContent=fresh.address; meBal.textContent=String(fresh.balance||0); pinStatus.textContent='PIN sax ah. Wallet la furay.';
-    renderBlocks();
-  }catch(err){ console.error(err); pinStatus.textContent='Error: '+err.message; }
-}
-
-// ---------------- Send Wizard ----------------
-el('cancel1').onclick=()=>{ sendWizard.classList.add('hidden'); step1.classList.remove('hidden'); step2.classList.add('hidden'); step3.classList.add('hidden'); step4.classList.add('hidden'); sendStatus.textContent=''; }
-startSendBtn.onclick=()=>{ sendWizard.classList.remove('hidden'); receiveSection.classList.add('hidden'); sendStatus.textContent=''; }
-el('next1').onclick=()=>{ if(!wizardToContact.value.trim()){ sendStatus.textContent='Geli recipient'; return;} step1.classList.add('hidden'); step2.classList.remove('hidden'); sendStatus.textContent=''; }
-el('prev2').onclick=()=>{ step2.classList.add('hidden'); step1.classList.remove('hidden'); }
-el('next2').onclick=()=>{ if(!wizardAmount.value||Number(wizardAmount.value)<=0){ sendStatus.textContent='Geli amount sax ah'; return;} step2.classList.add('hidden'); step3.classList.remove('hidden'); sendStatus.textContent=''; }
-el('prev3').onclick=()=>{ step3.classList.add('hidden'); step2.classList.remove('hidden'); }
-el('next3').onclick=()=>{ step3.classList.add('hidden'); step4.classList.remove('hidden'); confirmTo.textContent=wizardToContact.value.trim(); confirmAmount.textContent=wizardAmount.value; confirmMemo.textContent=wizardMemo.value||"-"; }
-
-// ---------------- FINAL SEND ----------------
-sendWizardBtn.onclick=async()=>{
-  sendStatus.textContent=''; try{
-    if(!session||!session.contact){ sendStatus.textContent='Fadlan gasho marka hore'; return; }
-    const sender=await fetchUserById(session.id); if(!sender){ sendStatus.textContent='Sender not found'; return; }
-    const recipientContact=wizardToContact.value.trim(), amt=Number(wizardAmount.value), memoVal=wizardMemo.value||'';
-    if(sender.balance<amt){ sendStatus.textContent='Balance ma filna'; return; }
-    let recipient=await getUserByContact(recipientContact);
-    if(!recipient){
-      const { data: rdata } = await supabase.from('users').insert([{ name:'Unknown', contact:recipientContact, password:'tmp', address:generateAddress(), balance:0, created_at: nowTs() }]).select().single();
-      recipient=rdata;
+// ---------------- LOAD USER DATA ----------------
+async function loadUserData() {
+  if (!currentUser) return;
+  
+  try {
+    const userDoc = await db.collection('users').doc(currentUser.uid).get();
+    if (userDoc.exists) {
+      userData = userDoc.data();
+      userName.textContent = userData.name;
+      meAddr.textContent = userData.address;
+      meBal.textContent = userData.balance;
+      await renderBlocks();
+    } else {
+      console.error('User document not found');
     }
-    const txHash='0x'+uid(12);
-    const { data: tx } = await supabase.from('transactions').insert([{ tx_hash:txHash, from_user:sender.id, to_user:recipient.id, amount:amt, memo:memoVal, created_at: nowTs() }]).select().single();
-    await supabase.from('users').update({ balance: sender.balance-amt }).eq('id', sender.id);
-    await supabase.from('users').update({ balance: (recipient.balance||0)+amt }).eq('id', recipient.id);
-    const { data: lastBlock } = await supabase.from('blocks').select('*').order('index',{ascending:false}).limit(1).maybeSingle();
-    const newIndex=lastBlock?lastBlock.index+1:0; const prevHash=lastBlock?lastBlock.hash:'0x0'; const newHash='0x'+uid(20); const txsArr=[tx.tx_hash];
-    await supabase.from('blocks').insert([{ index:newIndex, prev_hash:prevHash, hash:newHash, created_at: nowTs(), txs: JSON.stringify(txsArr) }]);
-    const updatedSender=await fetchUserById(sender.id); meBal.textContent=String(updatedSender.balance||0);
-    sendStatus.textContent='Transfer OK → '+txHash;
-    sendWizard.classList.add('hidden'); step1.classList.remove('hidden'); step2.classList.add('hidden'); step3.classList.add('hidden'); step4.classList.add('hidden'); wizardToContact.value=''; wizardAmount.value=''; wizardMemo.value='';
-    renderBlocks();
-    }catch(err){  
-    console.error(err);  
-    sendStatus.textContent = 'Error: ' + (err.message || JSON.stringify(err));  
-  }  
-}  
+  } catch (error) {
+    console.error('Error loading user data:', error);
+  }
+}
+
+// ---------------- Send Money Button ----------------
+startSendBtn.onclick = () => {
+  sendWizard.classList.remove('hidden');
+  receiveSection.classList.add('hidden'); // hide receive if open
+};
+
+// Step navigation
+document.getElementById('next1').onclick = async () => {
+  const recipientEmail = wizardToEmail.value.trim();
+  if(!recipientEmail){
+    sendStatus.textContent="Geli recipient email";
+    sendStatus.className = 'status error';
+    return;
+  }
   
-// ---------------- Receive handlers ----------------  
-receiveBtn.onclick = async () => {  
-  sendWizard.classList.add('hidden'); receiveSection.classList.toggle('hidden');  
-  if(!session || !session.contact){ receiveStatus.textContent = 'Login marka hore'; return; }  
-  const user = await fetchUserById(session.id);  
-  receiveAddr.textContent = user.address;  
-  receiveStatus.textContent = '';  
-}  
-copyAddrBtn.onclick = async ()=>{  
-  try{  
-    await navigator.clipboard.writeText(receiveAddr.textContent);  
-    receiveStatus.textContent = 'Address la copy gareeyay!';  
-  }catch(e){  
-    receiveStatus.textContent = 'Copy failed';  
-  }  
-}  
-el('closeReceive').onclick = ()=> receiveSection.classList.add('hidden');  
+  // Check if recipient exists
+  try {
+    const usersSnapshot = await db.collection('users')
+      .where('email', '==', recipientEmail)
+      .limit(1)
+      .get();
+    
+    if (usersSnapshot.empty) {
+      sendStatus.textContent = "Ma jiro user ku leh emailkaan";
+      sendStatus.className = 'status error';
+      return;
+    }
+    
+    step1.classList.add('hidden');
+    step2.classList.remove('hidden');
+    sendStatus.textContent = '';
+  } catch (error) {
+    console.error('Error checking recipient:', error);
+    sendStatus.textContent = `Error: ${error.message}`;
+    sendStatus.className = 'status error';
+  }
+};
+
+document.getElementById('prev2').onclick = () => { step2.classList.add('hidden'); step1.classList.remove('hidden'); };
+document.getElementById('next2').onclick = () => {
+  if(!wizardAmount.value || Number(wizardAmount.value)<=0){
+    sendStatus.textContent="Geli amount sax ah";
+    sendStatus.className = 'status error';
+    return;
+  }
   
-// ---------------- Explorer & Blocks rendering ----------------  
-createBlockBtn.onclick = ()=>{ blocksList.scrollIntoView({behavior:"smooth", block:"center"}); renderBlocks(); }  
+  if(Number(wizardAmount.value) > userData.balance){
+    sendStatus.textContent="Balance ma filna";
+    sendStatus.className = 'status error';
+    return;
+  }
   
-async function renderBlocks(){  
-  blocksList.innerHTML = '';  
-  try{  
-    const { data: blocks } = await supabase.from('blocks').select('*').order('index', { ascending: false });  
-    if(!blocks || !blocks.length){ blocksList.textContent = 'No blocks yet'; return; }  
+  step2.classList.add('hidden');
+  step3.classList.remove('hidden');
+  sendStatus.textContent='';
+};
+
+document.getElementById('prev3').onclick = () => { step3.classList.add('hidden'); step2.classList.remove('hidden'); };
+document.getElementById('next3').onclick = () => {
+  step3.classList.add('hidden');
+  step4.classList.remove('hidden');
+  confirmTo.textContent = wizardToEmail.value.trim();
+  confirmAmount.textContent = wizardAmount.value;
+  confirmMemo.textContent = wizardMemo.value || "-";
+};
+
+document.getElementById('prev4').onclick = () => { step4.classList.add('hidden'); step3.classList.remove('hidden'); };
+
+// Final send
+sendWizardBtn.onclick = async () => {
+  sendStatus.textContent='Processing transaction...';
+  sendStatus.className = 'status loading';
   
-    for(const b of blocks){  
-      const div = document.createElement('div'); div.className = 'block';  
-      div.innerHTML = `<strong>Block #${b.index}</strong><br>Prev: <code>${b.prev_hash}</code><br>Hash: <code>${b.hash}</code><br>Txs: ${ (b.txs ? JSON.parse(b.txs).length : 0) }<br>Time: ${b.created_at || b.ts || ''}`;  
-      // show tx details  
-      const txsHashes = b.txs ? JSON.parse(b.txs) : [];  
-      for(const h of txsHashes){  
-        const { data: tx } = await supabase.from('transactions').select('*').eq('tx_hash', h).maybeSingle();  
-        const tdiv = document.createElement('div'); tdiv.className = 'txItem';  
-        if(tx){  
-          // fetch user contacts for display  
-          const fromU = tx.from_user ? (await supabase.from('users').select('contact').eq('id', tx.from_user).maybeSingle()).data : null;  
-          const toU = tx.to_user ? (await supabase.from('users').select('contact').eq('id', tx.to_user).maybeSingle()).data : null;  
-          tdiv.innerHTML = `<b>${tx.tx_hash}</b><br><b>From:</b> ${fromU?.contact || tx.from_addr || '-'}<br><b>To:</b> ${toU?.contact || tx.to_addr || '-'}<br><b>Amount:</b> ${tx.amount}<br><b>Memo:</b> ${tx.memo||"-"}<br><small>${tx.created_at}</small>`;  
-        } else {  
-          tdiv.textContent = `[${h}] (tx not found)`;  
-        }  
-        div.appendChild(tdiv);  
-      }  
-      blocksList.appendChild(div);  
-    }  
-  }catch(err){  
-    console.error(err);  
-    blocksList.textContent = 'Error loading blocks: ' + (err.message || JSON.stringify(err));  
-  }  
-}  
-  
-// ---------------- Utility: render user balances if logged in ----------------  
-async function refreshCurrentUser(){  
-  if(!session || !session.id) return;  
-  const u = await fetchUserById(session.id);  
-  if(u){ meBal.textContent = String(u.balance || 0); meAddr.textContent = u.address; }  
-}  
-  
-// ---------------- Logout ----------------  
-logoutBtn.onclick = ()=> {  
-  session = null;  
-  walletSection.classList.add('hidden');  
-  loginSection.classList.remove('hidden');  
-}  
-  
-// ---------------- Init: try to fetch blocks on load ----------------  
-(async ()=>{ await renderBlocks(); })();  
-</script>  
-</body>  
-</html>  
+  try {
+    const recipientEmail = wizardToEmail.value.trim();
+    const amt = Number(wizardAmount.value);
+    const memoVal = wizardMemo.value;
+    
+    // Get sender and recipient data
+    const senderRef = db.collection('users').doc(currentUser.uid);
+    const recipientsSnapshot = await db.collection('users')
+      .where('email', '==', recipientEmail)
+      .limit(1)
+      .get();
+    
+    if (recipientsSnapshot.empty) {
+      sendStatus.textContent = "Ma jiro user ku leh emailkaan";
+      sendStatus.className = 'status error';
+      return;
+    }
+    
+    const recipientDoc = recipientsSnapshot.docs[0];
+    const recipientRef = recipientDoc.ref;
+    const recipientData = recipientDoc.data();
+    
+    // Create transaction
+    const tx = {
+      txHash: '0x'+uid(12),
+      fromAddr: userData.address,
+      toAddr: recipientData.address,
+      fromUserId: currentUser.uid,
+      toUserId: recipientDoc.id,
+      amount: amt,
+      memo: memoVal,
+      ts: nowTs()
+    };
+    
+    // Use batch write for atomic transaction
+    const batch = db.batch();
+    
+    // Update sender balance
+    batch.update(senderRef, {
+      balance: firebase.firestore.FieldValue.increment(-amt)
+    });
+    
+    // Update recipient balance
+    batch.update(recipientRef, {
+      balance: firebase.firestore.FieldValue.increment(amt)
+    });
+    
+    // Add transaction to Firestore
+    const txRef = db.collection('transactions').doc();
+    batch.set(txRef, tx);
+    
+    // Commit the batch
+    await batch.commit();
+    
+    // Update local user data
+    userData.balance -= amt;
+    meBal.textContent = userData.balance;
+    
+    sendStatus.textContent = "Transfer OK → " + tx.txHash;
+    sendStatus.className = 'status success';
+    
+    // Reset wizard
+    sendWizard.classList.add('hidden');
+    step1.classList.remove('hidden');
+    step2.classList.add('hidden');
+    step3.classList.add('hidden');
+    step4.classList.add('hidden');
+    wizardToEmail.value='';
+    wizardAmount.value='';
+    wizardMemo.value='';
+    
+    // Create block with this transaction
+    await createBlock([tx]);
+    
+  } catch (error) {
+    console.error('Send money error:', error);
+    sendStatus.textContent = `Error: ${error.message}`;
+    sendStatus.className = 'status error';
+  }
+};
+
+// ---------------- Receive Button ----------------
+receiveBtn.onclick = () => {
+  sendWizard.classList.add('hidden'); // hide send wizard
+  receiveSection.classList.toggle('hidden');
+  receiveAddr.textContent = userData.address;
+};
+
+// ---------------- Copy Address ----------------
+copyAddrBtn.onclick = () => {
+  navigator.clipboard.writeText(receiveAddr.textContent)
+    .then(()=>{ 
+      receiveStatus.textContent="Address la copy gareeyay!";
+      receiveStatus.className = 'status success';
+    })
+    .catch(()=>{ 
+      receiveStatus.textContent="Copy failed";
+      receiveStatus.className = 'status error';
+    });
+};
+
+// ---------------- BLOCKCHAIN ----------------
+createBlockBtn.onclick=()=>{ blocksList.scrollIntoView({behavior:"smooth",block:"center"}); }
+
+async function createBlock(txs=[]){
+  try {
+    const blocksRef = db.collection('blocks');
+    const blocksSnapshot = await blocksRef.orderBy('index', 'desc').limit(1).get();
+    
+    let prevHash = '0x0';
+    let index = 0;
+    
+    if (!blocksSnapshot.empty) {
+      const lastBlock = blocksSnapshot.docs[0].data();
+      prevHash = lastBlock.hash;
+      index = lastBlock.index + 1;
+    }
+    
+    const block = { 
+      index, 
+      ts: nowTs(), 
+      prevHash, 
+      hash: '0x'+uid(20), 
+      txs 
+    };
+    
+    await blocksRef.add(block);
+    await renderBlocks();
+  } catch (error) {
+    console.error('Error creating block:', error);
+  }
+}
+
+async function renderBlocks(){
+  try {
+    const blocksSnapshot = await db.collection('blocks')
+      .orderBy('index', 'desc')
+      .limit(10)
+      .get();
+    
+    blocksList.innerHTML = '';
+    
+    if (blocksSnapshot.empty) {
+      // Create genesis block if none exists
+      await createBlock([]);
+      return;
+    }
+    
+    blocksSnapshot.forEach(doc => {
+      const b = doc.data();
+      const d = document.createElement('div');
+      d.className = 'block';
+      d.innerHTML = `
+        <strong>Block #${b.index}</strong><br>
+        Prev: <code>${b.prevHash}</code><br>
+        Hash: <code>${b.hash}</code><br>
+        Txs: ${b.txs.length}<br>
+        Time: ${b.ts}
+      `;
+      
+      for(const t of b.txs){
+        const tx = document.createElement('div');
+        tx.className = 'txItem';
+        tx.innerHTML = `
+          <b>${t.txHash}</b><br>
+          <b>From:</b> ${t.fromAddr}<br>
+          <b>To:</b> ${t.toAddr}<br>
+          <b>Amount:</b> ${t.amount}<br>
+          <b>Memo:</b> ${t.memo||"-"}<br>
+          <small>${t.ts}</small>
+        `;
+        d.appendChild(tx);
+      }
+      blocksList.appendChild(d);
+    });
+  } catch (error) {
+    console.error('Error rendering blocks:', error);
+  }
+}
+
+// ---------------- Logout ----------------
+logoutBtn.onclick=()=>{
+  auth.signOut();
+}
+</script>
+</body>
+        </html>
