@@ -581,6 +581,44 @@ async function renderBlocks(){
 // ---------------- Logout ----------------
 logoutBtn.onclick=()=>{
   auth.signOut();
+  // ---------------- AUTO SILENT REFRESH ----------------
+let refreshInterval = null;
+
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUser = user;
+    await loadUserData();
+    loginSection.classList.add('hidden');
+    signupSection.classList.add('hidden');
+    walletSection.classList.remove('hidden');
+
+    // Setup automatic silent refresh every 5 seconds
+    if(!refreshInterval){
+      refreshInterval = setInterval(async ()=>{
+        try{
+          if(currentUser){
+            await currentUser.getIdToken(true); // Force refresh token silently
+            await loadUserData(); // Reload Firestore data
+            console.log("User data refreshed silently");
+          }
+        }catch(err){
+          console.error("Silent refresh error:", err);
+        }
+      }, 5000); // 5000 ms = 5 seconds
+    }
+  } else {
+    currentUser = null;
+    userData = null;
+    walletSection.classList.add('hidden');
+    loginSection.classList.remove('hidden');
+
+    // Clear refresh interval
+    if(refreshInterval){
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  }
+});
 }
 </script>
 </body>
